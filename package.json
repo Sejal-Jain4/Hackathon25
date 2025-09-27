@@ -1,0 +1,25 @@
+{
+  "name": "centisi-app",
+  "version": "1.0.0",
+  "description": "AI Finance Coach for Students with Voice Interface and Gamification",
+  "scripts": {
+    "start": "concurrently \"npm run start:server\" \"npm run start:client\"",
+    "start:client": "cd client && npm start",
+    "start:server": "cd server && python app.py",
+    "install:all": "npm install && cd client && npm install",
+    "install:python": "cd server && pip install -r requirements.txt",
+    "build": "cd client && npm run build"
+  },
+  "keywords": [
+    "finance",
+    "ai",
+    "voice",
+    "students",
+    "gamification"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
