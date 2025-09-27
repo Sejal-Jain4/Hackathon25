@@ -10,6 +10,8 @@ const AICoachPage = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentResponse, setCurrentResponse] = useState('');
   const messagesEndRef = useRef(null);
+  const aiResponseRef = useRef(null);
+  const voiceAssistantRef = useRef(null);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -21,45 +23,93 @@ const AICoachPage = () => {
   };
 
   const handleTranscript = async (transcript) => {
+    console.log('[AICoachPage] Received transcript:', transcript);
     // Add user message to chat
     const userMessage = { text: transcript, isUser: true };
     setMessages(prevMessages => [...prevMessages, userMessage]);
     
-    // Simulate processing - in real app, this would call the AI backend
+    // Call the AI backend
     setIsProcessing(true);
+    console.log('[AICoachPage] Starting AI backend call...');
     
     try {
-      // In a real app, this would be a call to your backend API with Azure OpenAI integration
-      // const response = await axios.post('/api/ai/chat', { message: transcript });
-      // const aiReply = response.data.reply;
+      // Get user profile and questionnaire responses from localStorage
+      const userProfileString = localStorage.getItem('centsi_user_profile');
+      const questionnaireString = localStorage.getItem('centsi_questionnaire_responses');
       
-      // For demo, we'll simulate a delay and response
-      setTimeout(() => {
-        const mockResponses = [
-          "I can help you create a budget for this semester. What's your monthly income?",
-          "Based on your spending habits, I recommend cutting back on entertainment by 15%.",
-          "Have you considered setting up an emergency fund? Even $20 a week adds up quickly.",
-          "Great progress on your savings goal! You've saved $120 this month.",
-          "I notice you've been spending more than usual on dining out. Would you like some tips to save money on food?"
-        ];
-        
-        const randomResponse = mockResponses[Math.floor(Math.random() * mockResponses.length)];
-        setCurrentResponse(randomResponse);
+      const userProfile = userProfileString ? JSON.parse(userProfileString) : {};
+      const questionnaireResponses = questionnaireString ? JSON.parse(questionnaireString) : {};
+      
+      // Merge profile data with questionnaire responses for more context
+      const fullUserContext = {
+        ...userProfile,
+        questionnaire: questionnaireResponses
+      };
+      
+      // Call backend API with Azure OpenAI integration
+      console.log('[AICoachPage] Sending to /api/ai/chat with context:', {
+        messageLength: transcript.length,
+        hasProfile: Object.keys(fullUserContext).length > 0,
+        hasQuestionnaire: fullUserContext.questionnaire && Object.keys(fullUserContext.questionnaire).length > 0
+      });
+
+      const response = await axios.post('/api/ai/chat', { 
+        message: transcript,
+        userId: localStorage.getItem('centsi_username') || 'default_user',
+        profile: fullUserContext
+      });
+      
+      console.log('[AICoachPage] Response received:', response.data);
+      if (response.data && response.data.status === 'success') {
+        const aiReply = response.data.reply;
+        console.log('[AICoachPage] AI reply:', aiReply);
+        setCurrentResponse(aiReply);
         
         // Add AI message to chat
-        const aiMessage = { text: randomResponse, isUser: false };
+        const aiMessage = { text: aiReply, isUser: false };
         setMessages(prevMessages => [...prevMessages, aiMessage]);
-        setIsProcessing(false);
-      }, 2000);
+      } else {
+        console.error('[AICoachPage] Invalid response format:', response.data);
+        throw new Error('Invalid response from server');
+      }
       
+      setIsProcessing(false);
     } catch (error) {
-      console.error('Error getting AI response:', error);
+      console.error('[AICoachPage] Error calling AI service:', error);
+      console.error('[AICoachPage] Error details:', error.response?.data || error.message);
+      
+      // Display error message to user instead of using mock responses
+      const errorMessage = "Sorry, I'm having trouble connecting to my AI brain right now. Please try again in a moment.";
+      setCurrentResponse(errorMessage);
+      
+      // Add error message to chat
+      const errorAiMessage = { text: errorMessage, isUser: false, isError: true };
+      setMessages(prevMessages => [...prevMessages, errorAiMessage]);
+      
       setIsProcessing(false);
     }
   };
 
   const handleResponseComplete = () => {
     setCurrentResponse('');
+    
+    // Always restart listening after response is complete
+    if (voiceAssistantRef.current && 
+        typeof voiceAssistantRef.current.startListening === 'function') {
+      // Small delay to avoid overlapping
+      setTimeout(() => {
+        voiceAssistantRef.current.startListening();
+      }, 500);
+    }
+  };
+  
+  const handleInterrupt = () => {
+    // This function will be passed to VoiceAssistant
+    // to allow it to interrupt the AI when the user starts speaking
+    if (aiResponseRef.current && typeof aiResponseRef.current.stopSpeaking === 'function') {
+      aiResponseRef.current.stopSpeaking();
+      setCurrentResponse('');
+    }
   };
 
   return (
@@ -86,15 +136,19 @@ const AICoachPage = () => {
       )}
       
       <VoiceAssistant 
+        ref={voiceAssistantRef}
         onTranscript={handleTranscript} 
         isListening={isListening}
         setIsListening={setIsListening}
+        onInterrupt={handleInterrupt}
       />
       
       {currentResponse && (
         <AiResponse 
+          ref={aiResponseRef}
           responseText={currentResponse} 
-          onComplete={handleResponseComplete} 
+          onComplete={handleResponseComplete}
+          canBeInterrupted={true}
         />
       )}
     </div>

@@ -257,7 +257,15 @@ const OnboardingPage = ({ onLogin }) => {
     } else {
       // Complete onboarding by saving profile data
       const userProfile = getUserProfile();
+      
+      // Save both the mock data profile AND the actual questionnaire responses
+      // This ensures we have both structured data and the raw answers
       localStorage.setItem('centsi_user_profile', JSON.stringify(userProfile));
+      localStorage.setItem('centsi_questionnaire_responses', JSON.stringify({
+        lifeStage: profile.lifeStage,
+        incomeType: profile.incomeType,
+        financialPriority: profile.financialPriority
+      }));
       
       // Call the login function passed from App.js if it exists
       if (onLogin) {
