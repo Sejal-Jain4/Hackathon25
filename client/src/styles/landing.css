@@ -2,7 +2,7 @@
 
 /* Gradient Text Animation */
 .gradient-text-animated {
-  background: linear-gradient(-45deg, #6366f1, #8244ea, #4338ca, #6d35c7);
+  background: linear-gradient(-45deg, #3391f9, #6a40d4, #09e2f8, #5733aa);
   background-size: 400% 400%;
   color: transparent;
   background-clip: text;
@@ -28,7 +28,7 @@
 }
 
 .card-glow:hover {
-  box-shadow: 0 0 20px rgba(146, 89, 247, 0.4);
+  box-shadow: 0 0 20px rgba(9, 226, 248, 0.4);
 }
 
 /* Custom Scroll Styling */
@@ -41,12 +41,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.6);
+  background: rgba(58, 232, 250, 0.6);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(146, 89, 247, 0.8);
+  background: rgba(106, 64, 212, 0.6);
 }
 
 /* Smooth Scroll Behavior */
