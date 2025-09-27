@@ -1,95 +1,28 @@
-# Centsi - AI Finance Coach for Students
+Centsi — AI Finance Coach for Students
 
-A personal finance management app designed specifically for students, featuring AI-powered financial coaching and personalized insights.
+This workspace contains two folders:
 
-## Features
+- `web` — Vite + React + TypeScript demo UI (Tailwind-ready)
+- `api` — FastAPI demo backend with core endpoints (get_balance, simulate_purchase, create_goal, ai/respond)
 
-- **AI Finance Coach**: Get personalized financial advice and insights
-- **Budget Tracking**: Create and manage budgets by category
-- **Goal Setting**: Set and track financial goals with visual progress indicators
-- **Spending Analysis**: Visualize spending patterns and trends
-- **Gamification**: Earn rewards and achievements for good financial habits
+Quick start (Windows PowerShell):
 
-## Project Structure
+# Backend
+cd api
+python -m venv .venv; .\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python db_init.py
+uvicorn app:app --reload --port 8000
 
-### Frontend (React Native + Expo)
+# Frontend (new shell)
+cd web
+npm install
+npm run dev
 
-```
-frontend/
-├── app.json          # Expo configuration
-├── App.tsx           # Main app component
-├── tsconfig.json     # TypeScript configuration
-├── assets/           # Images, fonts, and other static assets
-└── src/
-    ├── components/   # Reusable UI components
-    ├── constants/    # App constants and configuration
-    ├── hooks/        # Custom React hooks
-    ├── navigation/   # Navigation structure
-    ├── screens/      # App screens
-    ├── services/     # API and other services
-    ├── types/        # TypeScript type definitions
-    └── utils/        # Utility functions
-```
+Open http://localhost:5173/ — the frontend calls the API at /api; if you run the backend on port 8000, configure a proxy in Vite or launch the frontend with a small proxy setting.
 
-### Backend (FastAPI + SQLAlchemy)
+Proxy note (dev): add this to `web/vite.config.ts` if you run API on port 8000:
 
-```
-backend/
-└── app/
-    ├── database/     # Database configuration
-    ├── models/       # Database models
-    ├── routers/      # API routes
-    └── services/     # Business logic services
-```
+// inside defineConfig server: { proxy: { '/api': 'http://localhost:8000' } }
 
-## Getting Started
-
-### Frontend Setup
-
-1. Navigate to the frontend directory:
-   ```
-   cd frontend
-   ```
-
-2. Install dependencies:
-   ```
-   npm install
-   ```
-
-3. Start the development server:
-   ```
-   npm start
-   ```
-
-### Backend Setup
-
-1. Navigate to the backend directory:
-   ```
-   cd backend
-   ```
-
-2. Create and activate a virtual environment:
-   ```
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
-
-4. Start the backend server:
-   ```
-   uvicorn app.main:app --reload
-   ```
-
-## API Documentation
-
-Once the backend is running, you can access the interactive API documentation at:
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
-
-## Hackathon Notes
-
-This project was initially developed for a 30-hour hackathon. Some features are implemented as MVPs and would need further development for production use.
+The demo intentionally uses simple local logic instead of Azure services; to wire Azure OpenAI or Azure Speech, follow the comments in the web components and `api/app.py` to add keys and service calls.
