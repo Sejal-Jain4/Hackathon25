@@ -3,8 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Header from '../components/layout/Header';
 import { getUserProfile, getUsername } from '../utils/mockDataService';
-import { FaUpload, FaSpinner, FaChartLine, FaMoneyBillWave } from 'react-icons/fa';
-import { BsDash } from 'react-icons/bs';
+import { FaUpload, FaSpinner, FaChartLine, FaMoneyBillWave } from 'react-icons            <motion.div 
+        className="bg-dark-800 rounded-xl shadow-xl overflow-hidden border border-dark-700 flex flex-col h-[250px]"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.1 }}
+        style={{ position: 'relative' }}
+      >
+        <div className="bg-gradient-to-r from-accent-500 to-primary-500 h-2 w-full absolute top-0 left-0 z-10"></div>.div 
+        className="bg-dark-800 rounded-xl shadow-xl overflow-hidden border border-dark-700 flex flex-col h-[250px]"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.1 }}
+        style={{ position: 'relative' }}
+      >
+        <div className="bg-gradient-to-r from-accent-500 to-primary-500 h-2 w-full absolute top-0 left-0 z-10"></div>import { BsDash } from 'react-icons/bs';
 import piggyBank from '../assets/piggy.png';
 
 const HomePage = () => {
@@ -80,39 +93,12 @@ const HomePage = () => {
         </div>
       </motion.div>
       
-      {/* Savings Goals Card - Moved Up */}
+      {/* Recent Activity Card */}
       <motion.div 
         className="bg-dark-800 rounded-xl shadow-xl p-6 mb-6 border border-dark-700"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
-      >
-        <h2 className="text-xl font-bold text-white mb-4">Savings Goals</h2>
-        <div className="space-y-6">
-          {/* Multiple empty goal placeholders */}
-          {[...Array(3)].map((_, index) => (
-            <div key={index} className="space-y-2">
-              <div className="flex justify-between items-center mb-2">
-                <div>
-                  <div className="bg-dark-700 h-5 w-32 rounded animate-pulse mb-1"></div>
-                  <div className="bg-dark-700 h-3 w-24 rounded animate-pulse"></div>
-                </div>
-                <div className="bg-dark-700 h-5 w-24 rounded animate-pulse"></div>
-              </div>
-              <div className="w-full bg-dark-600 rounded-full h-3">
-                <div className="bg-dark-700 h-3 rounded-full w-0"></div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </motion.div>
-      
-      {/* Recent Activity Card - Moved to Bottom */}
-      <motion.div 
-        className="bg-dark-800 rounded-xl shadow-xl p-6 mb-6 border border-dark-700"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
       >
         <h2 className="text-xl font-bold text-white mb-4">Recent Activity</h2>
         <div className="space-y-4">
@@ -134,30 +120,37 @@ const HomePage = () => {
           </div>
         </div>
       </motion.div>
+      
+      {/* Savings Goal Card */}
+      <motion.div 
+        className="bg-dark-800 rounded-xl shadow-xl p-6 mb-6 border border-dark-700"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
+        <h2 className="text-xl font-bold text-white mb-4">Savings Goal</h2>
+        <div className="space-y-4">
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <div>
+                <div className="bg-dark-700 h-5 w-32 rounded animate-pulse mb-1"></div>
+                <div className="bg-dark-700 h-3 w-24 rounded animate-pulse"></div>
+              </div>
+              <div className="bg-dark-700 h-5 w-24 rounded animate-pulse"></div>
+            </div>
+            <div className="w-full bg-dark-600 rounded-full h-3">
+              <div className="bg-dark-700 h-3 rounded-full w-0"></div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+      
 
     </>
   );
 
   // Dashboard with real data
-  const renderLoadedDashboard = () => {
-    // Create additional savings goals for display
-    const savingsGoals = [
-      userProfile.savingsGoal,
-      { 
-        name: 'New Car Fund', 
-        target: 15000, 
-        current: 3500,
-        milestone: 'Save $5000'
-      },
-      { 
-        name: 'Home Down Payment', 
-        target: 25000, 
-        current: 2000,
-        milestone: 'Save $5000'
-      }
-    ];
-    
-    return (
+  const renderLoadedDashboard = () => (
     <>
       <motion.div 
         className="bg-dark-800 rounded-xl shadow-xl p-6 mb-6 border border-dark-700"
@@ -198,47 +191,11 @@ const HomePage = () => {
         </div>
       </motion.div>
       
-      {/* Savings Goals Card - Moved Up */}
       <motion.div 
         className="bg-dark-800 rounded-xl shadow-xl p-6 mb-6 border border-dark-700"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
-      >
-        <h2 className="text-xl font-bold text-white mb-4">Savings Goals</h2>
-        <div className="space-y-6">
-          {savingsGoals.map((goal, index) => (
-            <div key={index} className="space-y-2">
-              <div className="flex justify-between items-center mb-1">
-                <div>
-                  <p className="font-medium text-white">{goal.name}</p>
-                  <p className="text-xs text-gray-500">
-                    Next milestone: {goal.milestone || userProfile.nextMilestone.name}
-                  </p>
-                </div>
-                <p className="text-accent-400 font-medium">
-                  ${goal.current}/${goal.target}
-                </p>
-              </div>
-              <div className="w-full bg-dark-600 rounded-full h-3">
-                <motion.div 
-                  className="bg-gradient-to-r from-accent-500 to-primary-500 h-3 rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(goal.current / goal.target) * 100}%` }}
-                  transition={{ duration: 1, delay: 0.5 + (index * 0.2) }}
-                ></motion.div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </motion.div>
-      
-      {/* Recent Activity Card - Moved to Bottom */}
-      <motion.div 
-        className="bg-dark-800 rounded-xl shadow-xl p-6 mb-6 border border-dark-700"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
       >
         <h2 className="text-xl font-bold text-white mb-4">Recent Activity</h2>
         <div className="space-y-4">
@@ -264,9 +221,41 @@ const HomePage = () => {
           </div>
         </div>
       </motion.div>
+      
+      <motion.div 
+        className="bg-dark-800 rounded-xl shadow-xl p-6 mb-6 border border-dark-700"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
+        <h2 className="text-xl font-bold text-white mb-4">Savings Goal</h2>
+        <div className="space-y-4">
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <div>
+                <p className="font-medium text-white">{userProfile.savingsGoal.name}</p>
+                <p className="text-xs text-gray-500">
+                  Next milestone: {userProfile.nextMilestone.name}
+                </p>
+              </div>
+              <p className="text-accent-400 font-medium">
+                ${userProfile.savingsGoal.current}/${userProfile.savingsGoal.target}
+              </p>
+            </div>
+            <div className="w-full bg-dark-600 rounded-full h-3">
+              <motion.div 
+                className="bg-gradient-to-r from-accent-500 to-primary-500 h-3 rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${(userProfile.savingsGoal.current / userProfile.savingsGoal.target) * 100}%` }}
+                transition={{ duration: 1, delay: 0.5 }}
+              ></motion.div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
     </>
   );
-  };
   
   // Top stats cards for empty state
   const renderEmptyTopCards = () => (
@@ -277,7 +266,9 @@ const HomePage = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
+        style={{ position: 'relative' }}
       >
+        <div className="bg-gradient-to-r from-accent-500 to-primary-500 h-2 w-full absolute top-0 left-0 z-10"></div>
         <div className="p-5 flex flex-col flex-grow">
           <h2 className="text-lg font-bold text-white mb-2">Monthly Savings</h2>
           <div className="flex items-center mb-3">
@@ -336,6 +327,7 @@ const HomePage = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: 0.1 }}
       >
+        <div className="bg-gradient-to-r from-purple-500 to-pink-500 h-2"></div>
         <div className="p-5 flex flex-col flex-grow">
           <h2 className="text-lg font-bold text-white mb-2">Next Achievement</h2>
           <div className="flex items-center space-x-3 mb-3">
@@ -370,6 +362,7 @@ const HomePage = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: 0.2 }}
       >
+        <div className="bg-gradient-to-r from-accent-500 to-primary-500 h-2"></div>
         <div className="p-5 flex flex-col flex-grow">
           <h2 className="text-lg font-bold text-white mb-2">Budget Remaining</h2>
           <div className="flex items-center mb-3">
@@ -466,6 +459,7 @@ const HomePage = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
+          <div className="bg-gradient-to-r from-accent-500 to-primary-500 h-2"></div>
           <div className="p-5 flex flex-col flex-grow">
             <h2 className="text-lg font-bold text-white mb-2">Monthly Savings</h2>
             <div className="flex items-center mb-3">
@@ -524,6 +518,7 @@ const HomePage = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.1 }}
         >
+          <div className="bg-gradient-to-r from-accent-500 to-primary-500 h-2"></div>
           <div className="p-5 flex flex-col flex-grow">
             <h2 className="text-lg font-bold text-white mb-2">Next Achievement</h2>
             <div className="flex items-center space-x-3 mb-3">
@@ -540,7 +535,7 @@ const HomePage = () => {
               {/* Achievement Progress Bar */}
               <div className="w-full bg-dark-600 rounded-lg h-12 relative overflow-hidden">
                 <motion.div 
-                  className="bg-gradient-to-r from-accent-500 to-primary-500 h-12"
+                  className="bg-gradient-to-r from-purple-500 to-pink-500 h-12"
                   initial={{ width: 0 }}
                   animate={{ width: `${nextAchievement.progress}%` }}
                   transition={{ duration: 1, delay: 0.3 }}
@@ -565,10 +560,11 @@ const HomePage = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.2 }}
         >
+          <div className="bg-gradient-to-r from-accent-500 to-primary-500 h-2"></div>
           <div className="p-5 flex flex-col flex-grow">
             <h2 className="text-lg font-bold text-white mb-2">Budget Remaining</h2>
             <div className="flex items-center mb-3">
-              <span className="text-2xl font-bold text-accent-400">${budgetRemaining.toFixed(2)}</span>
+              <span className="text-2xl font-bold text-secondary-400">${budgetRemaining.toFixed(2)}</span>
               <span className="text-sm text-gray-500 ml-2">/ ${monthlyBudget.toFixed(2)}</span>
             </div>
             
@@ -582,16 +578,16 @@ const HomePage = () => {
                     // Each cell represents 10% of the budget
                     const isActive = (index + 1) * 10 <= budgetPercentage;
                     
-                    // Gradient from accent to primary for consistency with the top border
+                    // Gradient from blue when low to purple when high
                     // Determine the gradient based on position in the array
                     let gradientClass = '';
                     if (isActive) {
-                      if (index < 3) { // First 30% - Accent
-                        gradientClass = 'bg-accent-500';
-                      } else if (index < 7) { // 30-70% - Accent-primary blend
-                        gradientClass = 'bg-gradient-to-r from-accent-500 to-secondary-500';
-                      } else { // 70-100% - Primary
-                        gradientClass = 'bg-gradient-to-r from-secondary-500 to-primary-500';
+                      if (index < 3) { // First 30% - Blue
+                        gradientClass = 'bg-blue-500';
+                      } else if (index < 7) { // 30-70% - Blue-purple blend
+                        gradientClass = 'bg-gradient-to-r from-blue-500 to-indigo-500';
+                      } else { // 70-100% - Purple
+                        gradientClass = 'bg-gradient-to-r from-indigo-500 to-purple-500';
                       }
                     }
                     
@@ -769,12 +765,7 @@ const HomePage = () => {
 
   return (
     <div className="pb-16 bg-dark-900 min-h-screen">
-      <div className="bg-dark-800 px-6 py-4 shadow-md border-b border-dark-700">
-        <h1 className="text-2xl font-bold text-white text-left">
-          Welcome to <span className="bg-gradient-to-r from-accent-400 to-primary-400 bg-clip-text text-transparent">Centsi</span>
-          {username && <span className="ml-2 text-2xl font-bold text-white">{username}</span>}
-        </h1>
-      </div>
+      <Header title={`Welcome${username ? ', ' + username : '!'}`} />
       
       <div className="p-4">
         {/* Top cards section at the top */}

@@ -11,9 +11,9 @@ const OnboardingPage = ({ onLogin }) => {
   
   const [profile, setProfile] = useState({
     name: storedUsername,
-    lifeStage: 'college',
-    incomeType: 'part-time',
-    financialPriority: 'savings',
+    lifeStage: null,
+    incomeType: null,
+    financialPriority: null,
   });
 
   const steps = [
@@ -251,7 +251,31 @@ const OnboardingPage = ({ onLogin }) => {
     return profileData[profile.lifeStage];
   };
 
+  // Check if current step has a valid selection
+  const isCurrentStepValid = () => {
+    // First and last steps don't require selections
+    if (currentStep === 0 || currentStep === steps.length - 1) return true;
+    
+    // Check if appropriate selection exists for current step
+    switch (currentStep) {
+      case 1: // Life Stage
+        return profile.lifeStage !== null;
+      case 2: // Income Type
+        return profile.incomeType !== null;
+      case 3: // Financial Priority
+        return profile.financialPriority !== null;
+      default:
+        return true;
+    }
+  };
+
   const handleNext = () => {
+    // Only proceed if current step is valid
+    if (!isCurrentStepValid()) {
+      // Could add a visual indication that selection is required
+      return;
+    }
+    
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
@@ -325,9 +349,13 @@ const OnboardingPage = ({ onLogin }) => {
           )}
           <motion.button
             onClick={handleNext}
-            className="px-8 py-3 bg-gradient-to-r from-accent-500 to-secondary-500 hover:from-accent-600 hover:to-secondary-600 text-white font-bold rounded-lg shadow-lg"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            disabled={!isCurrentStepValid()}
+            className={`px-8 py-3 ${isCurrentStepValid() 
+              ? 'bg-gradient-to-r from-accent-500 to-secondary-500 hover:from-accent-600 hover:to-secondary-600 text-white' 
+              : 'bg-dark-600 text-gray-500 cursor-not-allowed'} 
+              font-bold rounded-lg shadow-lg transition-all duration-300`}
+            whileHover={isCurrentStepValid() ? { scale: 1.05 } : {}}
+            whileTap={isCurrentStepValid() ? { scale: 0.95 } : {}}
           >
             {currentStep === steps.length - 1 ? 'Go to Dashboard' : 'Next'}
           </motion.button>
