@@ -291,6 +291,11 @@ const OnboardingPage = ({ onLogin }) => {
         financialPriority: profile.financialPriority
       }));
       
+      // Save username separately for easy access
+      if (profile.name) {
+        localStorage.setItem('centsi_username', profile.name);
+      }
+      
       // Call the login function passed from App.js if it exists
       if (onLogin) {
         onLogin();

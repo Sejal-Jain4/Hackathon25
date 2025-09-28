@@ -76,6 +76,7 @@ def chat():
     user_message = data.get('message', '')
     user_id = data.get('userId', 'default_user')
     user_profile = data.get('profile', {})
+    is_system_request = data.get('isSystemRequest', False)  # Flag for system-generated requests
 
     # Check if OpenAI is available
     if not OPENAI_AVAILABLE:
@@ -105,6 +106,30 @@ def chat():
         openai.api_key = azure_key
         openai.api_version = "2023-05-15"  # Compatible with v0.28.0
         
+        # If this is a system request, we don't need to add all the context
+        # Just process the message as-is
+        if is_system_request:
+            logger.info("Processing system request")
+            
+            response = openai.ChatCompletion.create(
+                engine=deployment_name,
+                messages=[
+                    {"role": "system", "content": "You are Centsi, an AI financial assistant. Process this system request and generate a helpful response."},
+                    {"role": "user", "content": user_message}
+                ],
+                max_tokens=500,
+                temperature=0.7
+            )
+            
+            # Extract assistant's response
+            ai_reply = response['choices'][0]['message']['content']
+            
+            return jsonify({
+                "status": "success",
+                "reply": ai_reply
+            })
+        
+        # For normal user requests, build the full context
         # Define system message based on user profile
         system_message = """
         You are Centsi, an AI financial coach specializing in helping students and young adults manage their finances.
@@ -112,36 +137,65 @@ def chat():
         Respond in a friendly, supportive tone. Keep responses concise (under 3 sentences when possible).
         Focus on practical advice appropriate for young adults and students with limited income.
         Avoid jargon and explain financial concepts simply.
+
+        You can help users with:
+        1. Answering financial questions
+        2. Creating a budget
+        3. Setting savings goals
+        4. Tracking expenses
+        5. Understanding their financial situation
+        6. Providing financial tips
+        7. Generating financial reports
+
+        If a user asks about reports or summaries, offer to generate a financial report for them.
         """
         
         # Add user profile information if available
         if user_profile:
             # Extract information from profile and questionnaire
-            income_data = user_profile.get('income', {})
             questionnaire = user_profile.get('questionnaire', {})
+            financial_data = user_profile.get('finances', {})
             
             # Build a more detailed profile for the AI
             profile_info = f"""
             User Information:
+            - Username: {user_id}
             - Life stage: {questionnaire.get('lifeStage', 'Unknown')} 
               (High School Student, College Student, Fresh Graduate/Young Professional, or Parent/Family Manager)
             - Income type: {questionnaire.get('incomeType', 'Unknown')} 
               (Allowance/Part-time, Irregular/gig, Steady paycheck, or Stipend/scholarship)
             - Financial priority: {questionnaire.get('financialPriority', 'Unknown')} 
               (Savings goal, Debt/loans management, Daily budgeting, or Credit building/investing)
-            - Monthly income: {income_data.get('amount', 'Unknown')} {income_data.get('frequency', '')}
-            - Current savings goal: {user_profile.get('savingsGoal', {}).get('name', 'Unknown')} 
-              (Target: {user_profile.get('savingsGoal', {}).get('target', 'Unknown')}, 
-               Current: {user_profile.get('savingsGoal', {}).get('current', 'Unknown')})
             """
             
-            # Add expense information if available
-            expenses = user_profile.get('expenses', [])
-            if expenses:
-                expense_info = "- Monthly expenses:\n"
-                for expense in expenses:
-                    expense_info += f"  * {expense.get('category', 'Item')}: {expense.get('amount', 'Unknown')}\n"
-                profile_info += expense_info
+            # Add financial data if available
+            if financial_data:
+                income_data = financial_data.get('income', {})
+                
+                financial_summary = f"""
+                Financial Summary:
+                - Monthly income: ${income_data.get('amount', 0)} {income_data.get('frequency', 'monthly')}
+                - Total balance: ${financial_data.get('totalBalance', 0)}
+                """
+                
+                # Add expense information
+                expenses = financial_data.get('expenses', [])
+                if expenses:
+                    expense_info = "- Monthly expenses:\n"
+                    for expense in expenses:
+                        expense_info += f"  * {expense.get('name', 'Item')} ({expense.get('category', 'Other')}): ${expense.get('amount', 0)}\n"
+                    financial_summary += expense_info
+                
+                # Add savings goals
+                savings_goals = financial_data.get('savingsGoals', [])
+                if savings_goals:
+                    savings_info = "- Savings goals:\n"
+                    for goal in savings_goals:
+                        progress = (goal.get('current', 0) / goal.get('target', 1)) * 100
+                        savings_info += f"  * {goal.get('name', 'Goal')}: ${goal.get('current', 0)}/${goal.get('target', 0)} ({progress:.1f}%)\n"
+                    financial_summary += savings_info
+                
+                profile_info += financial_summary
                 
             system_message += profile_info
             
