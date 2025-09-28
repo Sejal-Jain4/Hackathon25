@@ -297,7 +297,7 @@ const OnboardingPage = ({ onLogin }) => {
       }
       
       // Navigate to dashboard
-      navigate('/');
+      navigate('/home');
     }
   };
 

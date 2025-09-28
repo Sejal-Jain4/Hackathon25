@@ -771,7 +771,12 @@ const HomePage = () => {
     <div className="pb-16 bg-dark-900 min-h-screen">
       <div className="bg-dark-800 px-6 py-4 shadow-md border-b border-dark-700">
         <h1 className="text-2xl font-bold text-white text-left">
-          Welcome to <span className="bg-gradient-to-r from-accent-400 to-primary-400 bg-clip-text text-transparent">Centsi</span>
+          Welcome to <span 
+            onClick={() => navigate('/')} 
+            className="bg-gradient-to-r from-accent-400 to-primary-400 bg-clip-text text-transparent cursor-pointer hover:opacity-80 transition-opacity"
+          >
+            Centsi
+          </span>
           {username && <span className="ml-2 text-2xl font-bold text-white">{username}</span>}
         </h1>
       </div>
