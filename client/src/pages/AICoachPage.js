@@ -19,6 +19,26 @@ const AICoachPage = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+  
+  // Stop listening when component unmounts (when navigating away)
+  useEffect(() => {
+    return () => {
+      // Cleanup function that runs when component unmounts
+      console.log('[AICoachPage] Unmounting - stopping microphone and speech');
+      
+      // Stop microphone
+      if (voiceAssistantRef.current && 
+          typeof voiceAssistantRef.current.stopListening === 'function') {
+        voiceAssistantRef.current.stopListening();
+      }
+      
+      // Stop any ongoing speech
+      if (aiResponseRef.current && 
+          typeof aiResponseRef.current.stopSpeaking === 'function') {
+        aiResponseRef.current.stopSpeaking();
+      }
+    };
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -93,16 +113,12 @@ const AICoachPage = () => {
   };
 
   const handleResponseComplete = () => {
+    console.log('[AICoachPage] handleResponseComplete called - speech finished');
     setCurrentResponse('');
     
-    // Always restart listening after response is complete
-    if (voiceAssistantRef.current && 
-        typeof voiceAssistantRef.current.startListening === 'function') {
-      // Small delay to avoid overlapping
-      setTimeout(() => {
-        voiceAssistantRef.current.startListening();
-      }, 500);
-    }
+    // We're no longer automatically restarting listening
+    // User will need to click the button to start a new session
+    console.log('[AICoachPage] AI response complete. User can click the mic button to start a new interaction.');
   };
   
   const handleInterrupt = () => {
@@ -145,12 +161,36 @@ const AICoachPage = () => {
       />
       
       {currentResponse && (
-        <AiResponse 
-          ref={aiResponseRef}
-          responseText={currentResponse} 
-          onComplete={handleResponseComplete}
-          canBeInterrupted={true}
-        />
+        <>
+          <AiResponse 
+            ref={aiResponseRef}
+            responseText={currentResponse} 
+            onComplete={handleResponseComplete}
+            canBeInterrupted={true}
+          />
+          {/* Debug button - visible only in development */}
+          {process.env.NODE_ENV === 'development' && (
+            <button 
+              className="fixed bottom-4 right-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+              onClick={() => {
+                console.log('[Debug] Force TTS button clicked');
+                // Attempt to force audio to play
+                if (aiResponseRef.current) {
+                  // Call speakResponse with current response text
+                  console.log('[Debug] Attempting to force speak:', currentResponse);
+                  // Force a user interaction that might enable audio
+                  const tempAudio = new Audio();
+                  tempAudio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+                  tempAudio.play()
+                    .then(() => console.log('[Debug] Audio context unlocked'))
+                    .catch(err => console.error('[Debug] Failed to unlock audio:', err));
+                }
+              }}
+            >
+              Debug: Force TTS
+            </button>
+          )}
+        </>
       )}
     </div>
   );

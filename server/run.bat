@@ -1,0 +1,3 @@
+@echo off
+echo Starting Centsi Python backend...
+python app.py

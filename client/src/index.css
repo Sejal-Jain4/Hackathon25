@@ -18,3 +18,46 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Custom animations */
+@keyframes sound-wave1 {
+  0% { transform: scaleY(0.5); }
+  50% { transform: scaleY(1.5); }
+  100% { transform: scaleY(0.5); }
+}
+
+@keyframes sound-wave2 {
+  0% { transform: scaleY(1.5); }
+  50% { transform: scaleY(0.5); }
+  100% { transform: scaleY(1.5); }
+}
+
+@keyframes sound-wave3 {
+  0% { transform: scaleY(1); }
+  50% { transform: scaleY(2); }
+  100% { transform: scaleY(1); }
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* Apply animations to utility classes */
+.animate-sound-wave1 {
+  animation: sound-wave1 1s infinite;
+}
+
+.animate-sound-wave2 {
+  animation: sound-wave2 1s infinite;
+  animation-delay: 0.2s;
+}
+
+.animate-sound-wave3 {
+  animation: sound-wave3 1s infinite;
+  animation-delay: 0.4s;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-in forwards;
+}
