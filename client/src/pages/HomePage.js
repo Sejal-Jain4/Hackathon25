@@ -32,6 +32,7 @@ import {
 } from 'react-icons/fa';
 import { BsDash } from 'react-icons/bs';
 import piggyBank from '../assets/piggy.png';
+import Confetti from 'react-confetti';
 import WelcomePopup from '../components/chatbot/WelcomePopup';
 import ChatbotModal from '../components/chatbot/ChatbotModal';
 import FinancialEntryForm from '../components/FinancialEntryForm';
@@ -1109,15 +1110,27 @@ const HomePage = () => {
         </div>
       </div>
       
-      {/* Welcome popup */}
-      <WelcomePopup 
-        isOpen={showWelcomePopup} 
-        onClose={() => {
-          setShowWelcomePopup(false);
-          localStorage.setItem('centsi_welcome_shown', 'true');
-        }} 
-        userProfile={questionnaire}
-      />
+      {/* Welcome popup with confetti */}
+      {showWelcomePopup && (
+        <>
+          <Confetti
+            width={window.innerWidth}
+            height={window.innerHeight}
+            recycle={false}
+            numberOfPieces={200}
+            gravity={0.15}
+            colors={['#FF5F6D', '#FFC371', '#38ef7d', '#6A82FB', '#00F5A0']}
+          />
+          <WelcomePopup 
+            isOpen={showWelcomePopup} 
+            onClose={() => {
+              setShowWelcomePopup(false);
+              localStorage.setItem('centsi_welcome_shown', 'true');
+            }} 
+            userProfile={questionnaire}
+          />
+        </>
+      )}
       
       {/* Chat modal */}
       <ChatbotModal 
