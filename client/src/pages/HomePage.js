@@ -525,8 +525,19 @@ const HomePage = () => {
                       // Check if goal just hit 100% (completed)
                       // This will trigger only once when the animation finishes at 100%
                       if (isComplete && goal.current === goal.target) {
-                        // Set the completed goal to trigger celebration
-                        setCompletedGoal(goal);
+                        // Check if this goal's completion celebration has already been shown
+                        const celebratedGoals = JSON.parse(localStorage.getItem('centsi_celebrated_goals') || '[]');
+                        const goalId = goal.id || `${goal.name}_${goal.target}`;
+                        
+                        // Only show celebration if this goal hasn't been celebrated before
+                        if (!celebratedGoals.includes(goalId)) {
+                          // Add this goal to the celebrated goals list
+                          celebratedGoals.push(goalId);
+                          localStorage.setItem('centsi_celebrated_goals', JSON.stringify(celebratedGoals));
+                          
+                          // Set the completed goal to trigger celebration
+                          setCompletedGoal(goal);
+                        }
                       }
                     }}
                   />

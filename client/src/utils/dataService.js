@@ -370,6 +370,18 @@ export const isAuthenticated = () => {
 export const clearDataLoadState = () => {
   localStorage.removeItem(STORAGE_KEYS.DATA_LOADED);
   localStorage.removeItem(STORAGE_KEYS.DATA_UPLOADED);
+  
+  // Clear learning progress
+  const learningKeys = Object.keys(localStorage).filter(key => 
+    key === 'centsi_learning_completed_count' || key.startsWith('centsi_learning_completed_'));
+  
+  learningKeys.forEach(key => {
+    localStorage.removeItem(key);
+  });
+  
+  // Clear celebrated goals tracking
+  localStorage.removeItem('centsi_celebrated_goals');
+  
   return true;
 };
 
@@ -689,7 +701,8 @@ export const recordLearningCompleted = () => {
   const newCount = learningCount + 1;
   localStorage.setItem('centsi_learning_completed_count', newCount.toString());
   
-  // Update achievement progress
+  // Update achievement progress - use completedLearning flag to mark it completed
+  // This will reset with other achievements when clearDataLoadState is called
   const result = updateAchievementProgress('financial_learner', { completedLearning: true });
   return result.newlyCompleted;
 };
