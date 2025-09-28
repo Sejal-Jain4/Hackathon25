@@ -1,0 +1,107 @@
+/* Floating Menu Animations and Styles */
+
+.menu-button {
+  transition: transform 0.3s ease-in-out;
+}
+
+.menu-expanded .menu-button {
+  transform: rotate(45deg);
+}
+
+.floating-menu-item {
+  transform: translateY(0);
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 100%;
+}
+
+.menu-expanded .floating-menu-item:nth-child(1) {
+  transform: translateY(-90px);
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0.05s;
+}
+
+.menu-expanded .floating-menu-item:nth-child(2) {
+  transform: translateY(-180px);
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0.1s;
+}
+
+.menu-expanded .floating-menu-item:nth-child(3) {
+  transform: translateY(-270px);
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0.15s;
+}
+
+/* Tooltip styles */
+.menu-tooltip {
+  background-color: rgba(30, 30, 36, 0.85);
+  backdrop-filter: blur(4px);
+  border-radius: 8px;
+  padding: 3px 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.2s ease;
+}
+
+.floating-menu-item:hover .menu-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Add subtle pulse animation to main button when collapsed */
+@keyframes subtle-pulse {
+  0% {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  }
+  50% {
+    box-shadow: 0 5px 20px rgba(114, 90, 193, 0.5);
+  }
+  100% {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.menu-button:not(.menu-expanded) {
+  animation: subtle-pulse 2s infinite ease-in-out;
+}
+
+/* Add a backdrop when menu is expanded for better visibility and interaction */
+.menu-expanded::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(1px);
+  z-index: 5;
+  opacity: 0;
+  animation: fade-in 0.3s forwards;
+  pointer-events: none; /* Ensure clicks pass through to elements below */
+}
+
+@keyframes fade-in {
+  to {
+    opacity: 1;
+  }
+}
+
+/* Enhanced button appearance */
+.floating-menu-item button {
+  transform: scale(1);
+  transition: transform 0.2s ease;
+}
+
+.floating-menu-item button:hover {
+  transform: scale(1.1);
+}

@@ -669,15 +669,6 @@ export const recordSectionExplored = (sectionName) => {
 };
 
 /**
- * Record that a user has interacted with the voice assistant
- * @returns {Object|null} - The achievement if newly completed, null otherwise
- */
-export const recordVoiceAssistantUsage = () => {
-  const result = updateAchievementProgress('voice_assistant_user', { usedVoiceAssistant: true });
-  return result.newlyCompleted;
-};
-
-/**
  * Record that a user has completed a learning activity
  * @returns {Object|null} - The achievement if newly completed, null otherwise
  */
@@ -694,4 +685,11 @@ export const recordLearningCompleted = () => {
   return result.newlyCompleted;
 };
 
-// Note: We're not redefining addSavingsGoal, instead we'll update the original one
+/**
+ * Record that a user has interacted with the voice assistant
+ * @returns {Object|null} - The achievement if newly completed, null otherwise
+ */
+export const recordVoiceAssistantUsage = () => {
+  const result = updateAchievementProgress('voice_assistant_user', { usedVoiceAssistant: true });
+  return result.newlyCompleted;
+};

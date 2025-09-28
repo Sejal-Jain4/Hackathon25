@@ -11,6 +11,7 @@ import ProfilePage from './pages/ProfilePage';
 import OnboardingPage from './pages/OnboardingPage';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
+import LearnPage from './pages/LearnPage';
 
 // Import components
 import NavBar from './components/layout/NavBar';
@@ -77,6 +78,10 @@ function AppContent() {
         <Route 
           path="/profile" 
           element={isLoggedIn ? <ProfilePage onLogout={handleLogout} /> : <Navigate to="/" />} 
+        />
+        <Route 
+          path="/learn" 
+          element={isLoggedIn ? <LearnPage /> : <Navigate to="/" />} 
         />
         
         {/* Default route */}

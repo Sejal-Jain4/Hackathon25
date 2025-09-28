@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FaUser, FaLock } from 'react-icons/fa';
 import { HiOutlineSparkles } from 'react-icons/hi';
+import { clearDataLoadState } from '../utils/dataService';
 
 const LoginPage = ({ onLogin }) => {
   const navigate = useNavigate();
@@ -21,6 +22,15 @@ const LoginPage = ({ onLogin }) => {
     
     // Store username in localStorage for personalization
     localStorage.setItem('centsi_username', username);
+    
+    // Reset achievement progress for new logins
+    localStorage.removeItem('centsi_achievements');
+    
+    // Reset savings goals for new logins
+    localStorage.removeItem('centsi_financial_data');
+    
+    // Clear data load state to ensure dashboard starts empty
+    clearDataLoadState();
     
     // Call the login function passed from App.js
     if (onLogin) {
