@@ -1,212 +1,196 @@
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
-import { SpeechConfig, SpeechSynthesizer, AudioConfig, SpeechSynthesisOutputFormat, PropertyId } from 'microsoft-cognitiveservices-speech-sdk';
 import axios from 'axios';
 
+/**
+ * AiResponse Component - Handles text-to-speech conversion and playback for AI responses
+ * Minimalist version with no visual elements - only audio
+ */
 const AiResponse = forwardRef(({ responseText, onComplete, canBeInterrupted = true }, ref) => {
-  const [isSpeaking, setIsSpeaking] = useState(false);
+  // State management
   const [status, setStatus] = useState('idle'); // idle, preparing, speaking
-  const [speechCredentials, setSpeechCredentials] = useState(null);
-  const synthesizerRef = useRef(null);
+  
+  // Refs
+  const audioRef = useRef(null);
   const isComponentMountedRef = useRef(true);
-  
-  // Get speech credentials when component mounts
-  useEffect(() => {
-    const fetchSpeechCredentials = async () => {
-      try {
-        // Try to get token from backend
-        const response = await axios.get('/api/ai/speech/token');
-        if (response.data && response.data.status === 'success') {
-          setSpeechCredentials({
-            key: response.data.key,
-            region: response.data.region,
-            endpoint: response.data.endpoint || null
-          });
-        } else {
-          console.error('Failed to get speech token');
-        }
-      } catch (error) {
-        console.error('Error fetching speech token:', error);
-        
-        // Fallback to environment variables if available
-        const envKey = process.env.REACT_APP_AZURE_SPEECH_KEY;
-        const envRegion = process.env.REACT_APP_AZURE_SPEECH_REGION;
-        const envEndpoint = process.env.REACT_APP_AZURE_SPEECH_ENDPOINT;
-        
-        if (envKey && (envRegion || envEndpoint)) {
-          setSpeechCredentials({
-            key: envKey,
-            region: envRegion,
-            endpoint: envEndpoint
-          });
-        }
-      }
-    };
-    
-    fetchSpeechCredentials();
-  }, []);
+  const currentAudioUrl = useRef(null);
 
+  // Initialize audio element on component mount
   useEffect(() => {
-    if (responseText && responseText.trim() !== '' && speechCredentials) {
-      speakResponse(responseText);
-    }
-  }, [responseText, speechCredentials]);
-  
-  // Cleanup on unmount
-  useEffect(() => {
+    audioRef.current = new Audio();
+    audioRef.current.autoplay = true;
+    
+    console.log('[AiResponse] Component mounted, initializing audio element');
+    
+    // Clean up when component unmounts
     return () => {
+      console.log('[AiResponse] Component unmounting, cleaning up resources');
       isComponentMountedRef.current = false;
       stopSpeaking();
     };
   }, []);
 
-  const stopSpeaking = () => {
-    if (synthesizerRef.current) {
-      try {
-        synthesizerRef.current.close();
-        synthesizerRef.current = null;
-        if (isComponentMountedRef.current) {
-          setIsSpeaking(false);
-          setStatus('idle');
-        }
-      } catch (error) {
-        console.error('Error stopping speech synthesis:', error);
-      }
-    }
-  };
-  
-  // Expose stopSpeaking method to parent component
-  useImperativeHandle(ref, () => ({
-    stopSpeaking
-  }));
-  
-  const speakResponse = async (text) => {
-    if (!text || !speechCredentials?.key || !speechCredentials?.region) return;
+  // Set up audio event listeners
+  useEffect(() => {
+    if (!audioRef.current) return;
     
-    // First stop any ongoing speech
+    const audio = audioRef.current;
+    
+    // Add ended event listener
+    audio.onended = () => {
+      if (!isComponentMountedRef.current) return;
+      console.log('[AiResponse] Audio playback ended');
+      
+      setStatus('idle');
+      
+      // Clean up URL object
+      if (currentAudioUrl.current) {
+        URL.revokeObjectURL(currentAudioUrl.current);
+        currentAudioUrl.current = null;
+      }
+      
+      // Notify parent component
+      if (onComplete) {
+        onComplete();
+      }
+    };
+    
+    // Add error event listener
+    audio.onerror = (e) => {
+      console.error('[AiResponse] Audio error:', e, audio.error);
+      setStatus('idle');
+      
+      // Clean up URL object
+      if (currentAudioUrl.current) {
+        URL.revokeObjectURL(currentAudioUrl.current);
+        currentAudioUrl.current = null;
+      }
+      
+      // Notify parent component
+      if (onComplete) {
+        onComplete();
+      }
+    };
+    
+    // Debug logging
+    audio.addEventListener('canplay', () => {
+      console.log('[AiResponse] Audio can play, duration:', audio.duration);
+    });
+    
+  }, [onComplete]);
+
+  // Process new responseText
+  useEffect(() => {
+    if (!responseText || responseText.trim() === '') return;
+    
+    console.log('[AiResponse] New response text received:', 
+      responseText.length > 50 ? responseText.substring(0, 50) + '...' : responseText);
+    
+    // Initiate TTS process
+    speakResponse();
+  }, [responseText]);
+
+  // Stop speaking and clean up resources
+  const stopSpeaking = () => {
+    if (!audioRef.current) return;
+    
+    const audio = audioRef.current;
+    audio.pause();
+    audio.currentTime = 0;
+    
+    // Clean up URL object
+    if (currentAudioUrl.current) {
+      URL.revokeObjectURL(currentAudioUrl.current);
+      currentAudioUrl.current = null;
+    }
+    
+    setStatus('idle');
+  };
+
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    stopSpeaking,
+    getStatus: () => status
+  }));
+
+  // Main function to handle text-to-speech
+  const speakResponse = async () => {
+    if (!responseText || !isComponentMountedRef.current) return;
+    
+    // Stop any ongoing speech
     stopSpeaking();
     
     try {
       setStatus('preparing');
-      setIsSpeaking(true);
+      console.log('[AiResponse] Starting TTS process for:', 
+        responseText.length > 50 ? responseText.substring(0, 50) + '...' : responseText);
       
-      // Create speech config using subscription key and region
-      const speechConfig = SpeechConfig.fromSubscription(
-        speechCredentials.key,
-        speechCredentials.region
+      // Make TTS API request
+      const response = await axios.post(
+        '/api/ai/elevenlabs/text-to-speech',
+        {
+          text: responseText,
+          voice_id: 'JBFqnCBsd6RMkjVDRZzb', // Female voice
+          model_id: 'eleven_multilingual_v2'
+        },
+        { 
+          responseType: 'blob',
+          timeout: 30000 
+        }
       );
       
-      // Configure for lower latency with reliable format
-      speechConfig.speechSynthesisVoiceName = "en-US-AriaNeural";
-      // Use Audio16Khz32KBitRateMonoMp3 format which is well-supported by browsers
-      speechConfig.setProperty(PropertyId.SpeechServiceConnection_SynthOutputFormat, 
-                              SpeechSynthesisOutputFormat.Audio16Khz32KBitRateMonoMp3);
-      speechConfig.setProperty(PropertyId.SpeechServiceResponse_RequestSentenceBoundary, "true");
+      console.log('[AiResponse] TTS response received:', {
+        contentType: response.headers['content-type'],
+        status: response.status
+      });
       
-      // For faster speech (can be adjusted as needed)
-      speechConfig.setProperty(PropertyId.SpeechServiceResponse_RequestWordBoundary, "false");
+      // Check for valid audio response
+      const audioBlob = response.data;
+      if (!audioBlob || audioBlob.size < 100) {
+        throw new Error(`Invalid audio data: size=${audioBlob?.size || 0}`);
+      }
       
-      const audioConfig = AudioConfig.fromDefaultSpeakerOutput();
-      const synthesizer = new SpeechSynthesizer(speechConfig, audioConfig);
+      // Create audio URL and set up audio element
+      const audioUrl = URL.createObjectURL(audioBlob);
+      currentAudioUrl.current = audioUrl;
       
-      synthesizerRef.current = synthesizer;
+      const audio = audioRef.current;
+      audio.src = audioUrl;
+      
+      // Set status to speaking
       setStatus('speaking');
       
-      // Split long responses into sentences for more natural pauses and faster start
-      const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
-      let firstSentenceSpoken = false;
-      
-      for (let i = 0; i < sentences.length; i++) {
-        // Check if we've been interrupted
-        if (!synthesizerRef.current || !isComponentMountedRef.current) {
-          return;
-        }
+      // Play audio with fallbacks for autoplay restrictions
+      try {
+        await audio.play();
+        console.log('[AiResponse] Audio playback started successfully');
+      } catch (playError) {
+        console.warn('[AiResponse] Autoplay blocked, waiting for user interaction', playError);
         
-        const sentence = sentences[i].trim();
-        if (!sentence) continue;
-        
-        await new Promise((resolve, reject) => {
-          synthesizerRef.current.speakTextAsync(
-            sentence,
-            result => {
-              if (i === sentences.length - 1 || !synthesizerRef.current) {
-                if (isComponentMountedRef.current) {
-                  setIsSpeaking(false);
-                  setStatus('idle');
-                }
-                if (i === sentences.length - 1) {
-                  synthesizerRef.current?.close();
-                  synthesizerRef.current = null;
-                  onComplete && onComplete();
-                }
-              }
-              resolve();
-            },
-            error => {
-              console.error('Error speaking response:', error);
-              if (isComponentMountedRef.current) {
-                setIsSpeaking(false);
-                setStatus('idle');
-              }
-              synthesizerRef.current?.close();
-              synthesizerRef.current = null;
-              onComplete && onComplete();
-              reject(error);
-            }
-          );
-          
-          // After first sentence starts playing, update UI immediately
-          if (!firstSentenceSpoken) {
-            firstSentenceSpoken = true;
+        // Add click handler to try playing after user interaction
+        document.addEventListener('click', async function tryPlayOnClick() {
+          try {
+            await audio.play();
+            console.log('[AiResponse] Audio playback started after user interaction');
+          } catch (err) {
+            console.error('[AiResponse] Audio playback failed even after user interaction', err);
           }
-        });
+          document.removeEventListener('click', tryPlayOnClick);
+        }, { once: true });
       }
+      
     } catch (error) {
-      console.error('Error initializing speech synthesis:', error);
-      if (isComponentMountedRef.current) {
-        setIsSpeaking(false);
-        setStatus('idle');
+      console.error('[AiResponse] Error in TTS process:', error);
+      setStatus('idle');
+      
+      // Notify parent component even if audio fails
+      if (onComplete) {
+        setTimeout(() => onComplete(), 2000);
       }
-      onComplete && onComplete();
     }
   };
 
-  return (
-    <div className={`fixed bottom-20 left-4 p-3 rounded-lg bg-primary-100 
-      max-w-xs ${status !== 'idle' ? 'shadow-lg border border-primary-300' : ''}`}>
-      
-      {status === 'preparing' && (
-        <div className="flex items-center space-x-2">
-          <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
-          <p className="text-sm text-gray-700">Preparing...</p>
-        </div>
-      )}
-      
-      {status === 'speaking' && (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="flex space-x-1">
-              <div className="w-2 h-4 bg-primary-500 rounded animate-sound-wave1"></div>
-              <div className="w-2 h-4 bg-primary-500 rounded animate-sound-wave2"></div>
-              <div className="w-2 h-4 bg-primary-500 rounded animate-sound-wave3"></div>
-            </div>
-            <p className="text-sm text-gray-700">Speaking...</p>
-          </div>
-          
-          {canBeInterrupted && (
-            <button 
-              className="ml-3 p-1 bg-gray-200 hover:bg-gray-300 rounded-full"
-              onClick={stopSpeaking}
-              aria-label="Stop speaking"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  );
+  // This component doesn't render any visible UI elements
+  return null;
 });
 
 export default AiResponse;

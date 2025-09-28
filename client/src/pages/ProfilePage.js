@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import Header from '../components/layout/Header';
 import { Card } from '../components/ui';
 import { 
   getCompleteUserData, 
-  getUsername,
-  saveFinancialData 
+  getUsername
 } from '../utils/dataService';
-import { FaUserCircle, FaEdit, FaSave } from 'react-icons/fa';
+import { FaEdit, FaSave } from 'react-icons/fa';
 
 const ProfilePage = () => {
   // Get user data from our data service
@@ -20,24 +18,9 @@ const ProfilePage = () => {
   });
   const [isEditing, setIsEditing] = useState(false);
 
-  // Function to update user profile in localStorage
-  const saveUserProfile = (updatedProfile) => {
-    if (userData && userData.profile) {
-      const newProfile = {
-        ...userData.profile,
-        ...updatedProfile
-      };
-      
-      // Update localStorage
-      localStorage.setItem('centsi_user_profile', JSON.stringify(newProfile));
-      
-      // Update UI state
-      setUserData({
-        ...userData,
-        profile: newProfile
-      });
-    }
-  };
+  // Function to update user profile in localStorage is not currently used
+  
+  // Instead, we're using direct localStorage updates elsewhere in the code
   
   // Function to update questionnaire responses in localStorage
   const saveQuestionnaireResponses = (updatedResponses) => {

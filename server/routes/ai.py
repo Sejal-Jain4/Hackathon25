@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_file
 import os
 import json
 import logging
@@ -23,50 +23,46 @@ except ImportError:
     OPENAI_AVAILABLE = False
     logger.warning("OpenAI SDK is not available")
 
-# Placeholder for Azure Speech Services integration
+# ElevenLabs integration
 try:
-    import azure.cognitiveservices.speech as speechsdk
-    SPEECH_SDK_AVAILABLE = True
-    logger.info("Azure Speech SDK is available")
+    # Import ElevenLabs API package - you'll need to install this with pip
+    import elevenlabs
+    ELEVENLABS_AVAILABLE = True
+    logger.info("ElevenLabs SDK is available")
 except ImportError:
-    SPEECH_SDK_AVAILABLE = False
-    logger.warning("Azure Speech SDK is not available")
+    ELEVENLABS_AVAILABLE = False
+    logger.warning("ElevenLabs SDK is not available")
 
 ai_bp = Blueprint('ai', __name__)
 
-@ai_bp.route('/speech/token', methods=['GET'])
-def get_speech_token():
-    """Generate an access token for Azure Speech Services"""
-    if not SPEECH_SDK_AVAILABLE:
+@ai_bp.route('/elevenlabs/token', methods=['GET'])
+def get_elevenlabs_token():
+    """Provide ElevenLabs API key to the client"""
+    if not ELEVENLABS_AVAILABLE:
         return jsonify({
             "status": "error",
-            "message": "Azure Speech SDK is not available"
+            "message": "ElevenLabs SDK is not available"
         }), 500
     
     try:
-        speech_key = os.environ.get("AZURE_SPEECH_KEY")
-        speech_region = os.environ.get("AZURE_SPEECH_REGION")
-        speech_endpoint = os.environ.get("AZURE_SPEECH_ENDPOINT")
+        elevenlabs_api_key = os.environ.get("ELEVENLABS_API_KEY")
         
-        if not speech_key or not speech_region:
+        if not elevenlabs_api_key:
             return jsonify({
                 "status": "error",
-                "message": "Azure Speech credentials not configured"
+                "message": "ElevenLabs API key not configured"
             }), 500
         
-        # Return key, region, and endpoint for client-side use
+        # Return ElevenLabs API key for client-side use
         return jsonify({
             "status": "success",
-            "token": speech_key,  # Renamed to token for clarity (key and token are the same for Speech Services)
-            "key": speech_key,    # Keep for backwards compatibility
-            "region": speech_region,
-            "endpoint": speech_endpoint
+            "api_key": elevenlabs_api_key
         })
     except Exception as e:
-        logger.error(f"Error generating speech token: {str(e)}")
+        logger.error(f"Error providing ElevenLabs token: {str(e)}")
         return jsonify({
             "status": "error",
-            "message": "Error generating speech token",
+            "message": "Error providing ElevenLabs token",
             "error": str(e) if os.environ.get('FLASK_ENV') == 'development' else ""
         }), 500
 
@@ -253,20 +249,258 @@ def chat():
             "error": str(e) if os.environ.get('FLASK_ENV') == 'development' else ""
         }), 500
 
-@ai_bp.route('/speech-to-text', methods=['POST'])
+@ai_bp.route('/elevenlabs/speech-to-text', methods=['POST'])
 def speech_to_text():
-    # This function is now primarily handled client-side with direct Azure Speech SDK integration
-    # We'll return an error message to ensure no mock data is used
-    return jsonify({
-        "status": "error",
-        "message": "This endpoint is deprecated. Speech-to-text is now handled client-side with Azure Speech Services."
-    }), 400
+    """Convert audio to text using ElevenLabs"""
+    if not ELEVENLABS_AVAILABLE:
+        return jsonify({
+            "status": "error",
+            "message": "ElevenLabs SDK is not available"
+        }), 500
+    
+    # Track temporary files for cleanup
+    temp_files = []
+    
+    try:
+        # Check if request has audio file
+        if 'audio' not in request.files:
+            return jsonify({
+                "status": "error",
+                "message": "No audio file provided"
+            }), 400
+            
+        audio_file = request.files['audio']
+        
+        # Initialize ElevenLabs client
+        elevenlabs_api_key = os.environ.get("ELEVENLABS_API_KEY")
+        client = elevenlabs.ElevenLabs(api_key=elevenlabs_api_key)
+        
+        # Check if diagnostic mode is enabled
+        diagnostic_mode = 'diagnostic' in request.form and request.form['diagnostic'] == 'true'
+        
+        # Log file info
+        logger.info(f"Received audio with MIME type: {audio_file.content_type}")
+        
+        # Log the file content length to help diagnose issues
+        audio_file.seek(0, os.SEEK_END)
+        size = audio_file.tell()
+        audio_file.seek(0)
+        logger.info(f"Audio file size: {size} bytes")
+        
+        if size < 100:  # Arbitrary small size that indicates a problem
+            raise ValueError("Audio file is too small, likely corrupted")
+        
+        # Save incoming file to disk
+        import tempfile
+        import uuid
+        from io import BytesIO
+        
+        temp_dir = tempfile.gettempdir()
+        original_filename = f"original_audio_{uuid.uuid4().hex}.webm"
+        original_path = os.path.join(temp_dir, original_filename)
+        temp_files.append(original_path)
+        
+        logger.info(f"Saving received audio to temporary file: {original_path}")
+        audio_file.seek(0)
+        audio_file.save(original_path)
+        
+        # Verify the file was saved correctly
+        if not os.path.exists(original_path):
+            raise ValueError("Failed to save temporary audio file")
+            
+        file_size = os.path.getsize(original_path)
+        logger.info(f"Original audio saved, size: {file_size} bytes")
+        
+        # Read file into memory buffer for ElevenLabs API
+        audio_data = BytesIO()
+        with open(original_path, 'rb') as f:
+            audio_data.write(f.read())
+        
+        # Reset position to beginning of buffer
+        audio_data.seek(0)
+        
+        # Call ElevenLabs API with memory buffer
+        logger.info("Calling ElevenLabs speech-to-text API...")
+        transcription = client.speech_to_text.convert(
+            file=audio_data,
+            model_id="scribe_v1",
+            language_code="eng",
+            # Do not enable diarization as it's not needed for simple queries
+            diarize=False
+        )
+        
+        # Return the transcription
+        logger.info(f"Transcription successful: '{transcription.text}'")
+        
+        # Include diagnostic info if requested
+        response_data = {
+            "status": "success",
+            "text": transcription.text
+        }
+        
+        if diagnostic_mode:
+            response_data["diagnostic"] = {
+                "original_size": file_size,
+                "mime_type": audio_file.content_type,
+            }
+        
+        # Clean up temporary files
+        for temp_file in temp_files:
+            try:
+                if os.path.exists(temp_file):
+                    os.remove(temp_file)
+                    logger.info(f"Temporary file removed: {temp_file}")
+            except Exception as cleanup_error:
+                logger.error(f"Failed to remove temporary file {temp_file}: {cleanup_error}")
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        logger.error(f"ElevenLabs speech-to-text error: {str(e)}")
+        
+        # Include error details from ElevenLabs API if available
+        error_details = {}
+        if hasattr(e, 'response'):
+            try:
+                error_details['status_code'] = e.response.status_code
+                error_details['headers'] = dict(e.response.headers)
+                try:
+                    error_details['body'] = e.response.json()
+                except:
+                    error_details['body'] = e.response.text
+                logger.error(f"ElevenLabs API error details: {error_details}")
+            except:
+                logger.error("Failed to extract detailed error information")
+        
+        # Clean up temporary files even in case of error
+        for temp_file in temp_files:
+            try:
+                if os.path.exists(temp_file):
+                    os.remove(temp_file)
+                    logger.info(f"Temporary file removed after error: {temp_file}")
+            except Exception as cleanup_error:
+                logger.error(f"Failed to remove temporary file {temp_file} after error: {cleanup_error}")
+        
+        return jsonify({
+            "status": "error",
+            "message": "Error processing speech-to-text with ElevenLabs",
+            "error": str(e) if os.environ.get('FLASK_ENV') == 'development' else "",
+            "details": error_details if os.environ.get('FLASK_ENV') == 'development' else {}
+        }), 500
 
-@ai_bp.route('/text-to-speech', methods=['POST'])
+@ai_bp.route('/elevenlabs/text-to-speech', methods=['POST'])
 def text_to_speech():
-    # This function is now primarily handled client-side with direct Azure Speech SDK integration
-    # We'll return an error message to ensure no mock data is used
-    return jsonify({
-        "status": "error",
-        "message": "This endpoint is deprecated. Text-to-speech is now handled client-side with Azure Speech Services."
-    }), 400
+    """Convert text to speech using ElevenLabs"""
+    if not ELEVENLABS_AVAILABLE:
+        logger.error("ElevenLabs SDK is not available")
+        return jsonify({
+            "status": "error",
+            "message": "ElevenLabs SDK is not available"
+        }), 500
+    
+    try:
+        data = request.json
+        text = data.get('text')
+        voice_id = data.get('voice_id', 'JBFqnCBsd6RMkjVDRZzb')  # Default to female voice
+        model_id = data.get('model_id', 'eleven_multilingual_v2')
+        
+        logger.info(f"Text-to-speech request: {len(text)} chars, voice: {voice_id}, model: {model_id}")
+        
+        if not text:
+            logger.error("No text provided for text-to-speech")
+            return jsonify({
+                "status": "error",
+                "message": "No text provided"
+            }), 400
+        
+        # Initialize ElevenLabs client
+        elevenlabs_api_key = os.environ.get("ELEVENLABS_API_KEY")
+        if not elevenlabs_api_key:
+            logger.error("ElevenLabs API key not found")
+            return jsonify({
+                "status": "error", 
+                "message": "ElevenLabs API key not configured"
+            }), 500
+            
+        logger.info(f"Initializing ElevenLabs client with API key: {elevenlabs_api_key[:4]}...")
+        client = elevenlabs.ElevenLabs(api_key=elevenlabs_api_key)
+        
+        # Convert text to speech
+        logger.info("Calling ElevenLabs text-to-speech API...")
+        audio = client.text_to_speech.convert(
+            text=text,
+            voice_id=voice_id,
+            model_id=model_id,
+            output_format="mp3_44100_128",
+        )
+        logger.info("ElevenLabs API call successful")
+        
+        # Create a unique temporary filename to avoid conflicts
+        import uuid
+        import tempfile
+        
+        temp_dir = tempfile.gettempdir()
+        temp_filename = f"speech_{uuid.uuid4().hex}.mp3"
+        temp_audio_path = os.path.join(temp_dir, temp_filename)
+        
+        logger.info(f"Saving audio to temporary file: {temp_audio_path}")
+        with open(temp_audio_path, "wb") as f:
+            chunk_count = 0
+            for chunk in audio:
+                f.write(chunk)
+                chunk_count += 1
+                
+        logger.info(f"Audio saved: {chunk_count} chunks, file exists: {os.path.exists(temp_audio_path)}")
+        
+        # Get file size
+        file_size = os.path.getsize(temp_audio_path) if os.path.exists(temp_audio_path) else 0
+        logger.info(f"Audio file size: {file_size} bytes")
+        
+        if file_size == 0:
+            logger.error("Generated audio file is empty")
+            # Remove the empty file
+            try:
+                os.remove(temp_audio_path)
+            except:
+                pass
+            return jsonify({
+                "status": "error",
+                "message": "Generated audio is empty"
+            }), 500
+        
+        # Create a response with the audio file
+        logger.info("Sending audio file as response")
+        response = send_file(
+            temp_audio_path,
+            mimetype="audio/mpeg",  # More standard MIME type for MP3
+            as_attachment=True,
+            download_name="speech.mp3",
+            # Make sure file is deleted after sending
+            conditional=True
+        )
+        
+        # Add headers to ensure proper handling by browsers
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        
+        # Register a callback to delete the file after it's been sent
+        @response.call_on_close
+        def on_response_sent():
+            try:
+                if os.path.exists(temp_audio_path):
+                    logger.info(f"Cleaning up temporary file: {temp_audio_path}")
+                    os.remove(temp_audio_path)
+            except Exception as e:
+                logger.error(f"Failed to remove temporary file: {e}")
+                
+        return response
+        
+    except Exception as e:
+        logger.error(f"ElevenLabs text-to-speech error: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Error processing text-to-speech with ElevenLabs",
+            "error": str(e) if os.environ.get('FLASK_ENV') == 'development' else ""
+        }), 500
