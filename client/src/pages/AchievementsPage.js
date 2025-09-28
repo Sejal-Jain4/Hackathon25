@@ -53,11 +53,28 @@ const AchievementsPage = () => {
     // Calculate XP based on completed achievements (each gives xpReward)
     const totalXP = completedAchievements.reduce((sum, achievement) => sum + (achievement.xpReward || 100), 0);
     
-    // Calculate level (every 500 XP = 1 level, starting at level 1)
-    const level = Math.max(1, Math.floor(totalXP / 500) + 1);
+    // Define XP thresholds for each level (level 1: 0-299, level 2: 300-799, level 3: 800+)
+    const levelThresholds = [0, 300, 800];
     
-    // Calculate XP to next level
-    const xpToNextLevel = (level * 500) - totalXP;
+    // Calculate current level
+    let level = 1;
+    for (let i = 1; i < levelThresholds.length; i++) {
+      if (totalXP >= levelThresholds[i]) {
+        level = i + 1;
+      } else {
+        break;
+      }
+    }
+    
+    // Calculate XP needed for next level
+    let xpToNextLevel;
+    if (level < levelThresholds.length) {
+      xpToNextLevel = levelThresholds[level] - totalXP;
+    } else {
+      // If beyond our defined levels, use a standard progression (500 XP per level after level 3)
+      xpToNextLevel = 500 - (totalXP - levelThresholds[levelThresholds.length - 1]) % 500;
+      if (xpToNextLevel === 500) xpToNextLevel = 0;
+    }
     
     // Get streak from local storage or default to 0
     const streak = parseInt(localStorage.getItem('centsi_login_streak') || '0');
@@ -216,25 +233,28 @@ const AchievementsPage = () => {
           </div>
         </div>
         
-        <div className="w-full bg-dark-600 rounded-full h-2">
-          <div 
-            className="bg-gradient-to-r from-accent-500 to-primary-500 h-2 rounded-full" 
-            style={{ width: `${(stats.xp / (stats.xp + stats.xpToNextLevel)) * 100}%` }}
-          ></div>
-        </div>
-        
-        <div className="flex justify-between items-center mt-4">
+          <div className="w-full bg-dark-600 rounded-full h-2">
+            <div 
+              className="bg-gradient-to-r from-accent-500 to-primary-500 h-2 rounded-full" 
+              style={{ 
+                width: stats.level === 1 
+                  ? `${(stats.xp / 300) * 100}%`  // Level 1: 0-300 XP
+                  : stats.level === 2 
+                    ? `${((stats.xp - 300) / 500) * 100}%`  // Level 2: 300-800 XP
+                    : `${((stats.xp - 800) % 500) / 500 * 100}%`  // Level 3+: 500 XP per level
+              }}
+            ></div>
+          </div>        <div className="flex justify-between items-center mt-4">
           <div className="text-center">
             <div className="font-semibold text-lg text-white">{stats.streak}</div>
             <div className="text-xs text-gray-400">Day Streak</div>
           </div>
-          <div className="text-center">
-            <div className="font-semibold text-lg text-white">0</div>
-            <div className="text-xs text-gray-400">Badges</div>
-          </div>
-          <div className="text-center">
-            <div className="font-semibold text-lg text-white">0</div>
-            <div className="text-xs text-gray-400">Achievements</div>
+          <div className="text-center flex items-center">
+            <div className="font-semibold text-lg text-white mr-1">0</div>
+            <div className="text-xs text-gray-400 flex flex-col items-start">
+              <span>Badges</span>
+              <span>Earned</span>
+            </div>
           </div>
         </div>
       </Card>
@@ -318,7 +338,13 @@ const AchievementsPage = () => {
             <motion.div 
               className="bg-gradient-to-r from-accent-500 to-primary-500 h-2 rounded-full" 
               initial={{ width: 0 }}
-              animate={{ width: `${(stats.xp / (stats.xp + stats.xpToNextLevel)) * 100}%` }}
+              animate={{ 
+                width: stats.level === 1 
+                  ? `${(stats.xp / 300) * 100}%`  // Level 1: 0-300 XP
+                  : stats.level === 2 
+                    ? `${((stats.xp - 300) / 500) * 100}%`  // Level 2: 300-800 XP
+                    : `${((stats.xp - 800) % 500) / 500 * 100}%`  // Level 3+: 500 XP per level
+              }}
               transition={{ duration: 1, delay: 0.2 }}
             ></motion.div>
           </div>
@@ -328,13 +354,12 @@ const AchievementsPage = () => {
               <div className="font-semibold text-lg text-white">{stats.streak}</div>
               <div className="text-xs text-gray-400">Day Streak</div>
             </div>
-            <div className="text-center">
-              <div className="font-semibold text-lg text-white">{badges.filter(b => b.earned).length}</div>
-              <div className="text-xs text-gray-400">Badges</div>
-            </div>
-            <div className="text-center">
-              <div className="font-semibold text-lg text-white">{milestones.filter(a => a.completed).length}</div>
-              <div className="text-xs text-gray-400">Achievements</div>
+            <div className="text-center flex items-center">
+              <div className="font-semibold text-lg text-white mr-1">{badges.filter(b => b.earned).length}</div>
+              <div className="text-xs text-gray-400 flex flex-col items-start">
+                <span>Badges</span>
+                <span>Earned</span>
+              </div>
             </div>
           </div>
         </Card>
@@ -439,111 +464,6 @@ const AchievementsPage = () => {
               ))}
             </div>
           </div>
-        </div>
-        
-        {/* Stats Cards */}
-        <h2 className="text-lg font-semibold mb-3 text-white flex items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-secondary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-          </svg>
-          Stats & Milestones
-        </h2>
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <Card className="p-4">
-            <h3 className="font-medium text-white mb-2">Savings</h3>
-            <div className="flex items-baseline">
-              <span className="text-2xl font-bold text-accent-400">
-                ${(userData?.finances?.savingsGoals || []).reduce((sum, goal) => sum + goal.current, 0)}
-              </span>
-              <span className="text-xs text-gray-400 ml-2">total saved</span>
-            </div>
-            <div className="mt-3 text-xs text-gray-400">
-              <div className="flex justify-between mb-1">
-                <span>Next milestone:</span>
-                <span>$500</span>
-              </div>
-              <div className="w-full bg-dark-600 rounded-full h-1.5">
-                <motion.div 
-                  className="bg-accent-500 h-1.5 rounded-full" 
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(100, (userData?.finances?.savingsGoals || []).reduce((sum, goal) => sum + goal.current, 0) / 5)}%` }}
-                  transition={{ duration: 0.8, delay: 0.3 }}
-                ></motion.div>
-              </div>
-            </div>
-          </Card>
-          
-          <Card className="p-4">
-            <h3 className="font-medium text-white mb-2">Budgeting</h3>
-            <div className="flex items-baseline">
-              <span className="text-2xl font-bold text-primary-400">
-                {userData?.finances?.expenses?.length || 0}
-              </span>
-              <span className="text-xs text-gray-400 ml-2">expense categories</span>
-            </div>
-            <div className="mt-3 text-xs text-gray-400">
-              <div className="flex justify-between mb-1">
-                <span>Budget completion:</span>
-                <span>{userData?.finances?.expenses?.length >= 3 ? '100%' : `${Math.min(100, ((userData?.finances?.expenses?.length || 0) / 3) * 100)}%`}</span>
-              </div>
-              <div className="w-full bg-dark-600 rounded-full h-1.5">
-                <motion.div 
-                  className="bg-primary-500 h-1.5 rounded-full" 
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(100, ((userData?.finances?.expenses?.length || 0) / 3) * 100)}%` }}
-                  transition={{ duration: 0.8, delay: 0.4 }}
-                ></motion.div>
-              </div>
-            </div>
-          </Card>
-          
-          <Card className="p-4">
-            <h3 className="font-medium text-white mb-2">Learning</h3>
-            <div className="flex items-baseline">
-              <span className="text-2xl font-bold text-secondary-400">
-                {parseInt(localStorage.getItem('centsi_learning_completed_count') || '0')}
-              </span>
-              <span className="text-xs text-gray-400 ml-2">activities completed</span>
-            </div>
-            <div className="mt-3 text-xs text-gray-400">
-              <div className="flex justify-between mb-1">
-                <span>Knowledge level:</span>
-                <span>Beginner</span>
-              </div>
-              <div className="w-full bg-dark-600 rounded-full h-1.5">
-                <motion.div 
-                  className="bg-secondary-500 h-1.5 rounded-full" 
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(100, (parseInt(localStorage.getItem('centsi_learning_completed_count') || '0') / 5) * 100)}%` }}
-                  transition={{ duration: 0.8, delay: 0.5 }}
-                ></motion.div>
-              </div>
-            </div>
-          </Card>
-          
-          <Card className="p-4">
-            <h3 className="font-medium text-white mb-2">App Usage</h3>
-            <div className="flex items-baseline">
-              <span className="text-2xl font-bold text-green-400">
-                {stats.streak}
-              </span>
-              <span className="text-xs text-gray-400 ml-2">day streak</span>
-            </div>
-            <div className="mt-3 text-xs text-gray-400">
-              <div className="flex justify-between mb-1">
-                <span>Engagement:</span>
-                <span>{stats.streak > 0 ? (stats.streak > 5 ? 'Excellent' : 'Good') : 'Getting Started'}</span>
-              </div>
-              <div className="w-full bg-dark-600 rounded-full h-1.5">
-                <motion.div 
-                  className="bg-green-500 h-1.5 rounded-full" 
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(100, (stats.streak / 7) * 100)}%` }}
-                  transition={{ duration: 0.8, delay: 0.6 }}
-                ></motion.div>
-              </div>
-            </div>
-          </Card>
         </div>
       </div>
     );

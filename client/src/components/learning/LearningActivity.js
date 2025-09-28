@@ -27,6 +27,9 @@ const LearningActivity = ({ title, description, content, onAchievementComplete }
     // Record achievement for completing learning activity
     const achievement = recordLearningCompleted();
     
+    // Dispatch an event to notify the LearnPage component that an activity was completed
+    window.dispatchEvent(new Event('storage'));
+    
     // If achievement was completed and parent handler exists, pass the achievement to parent
     if (achievement && onAchievementComplete) {
       onAchievementComplete(achievement);

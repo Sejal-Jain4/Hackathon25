@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from '../components/layout/Header';
 import { motion } from 'framer-motion';
 import Card from '../components/ui/Card';
@@ -9,6 +9,25 @@ import { AchievementCelebration } from '../components/ui';
 
 const LearnPage = () => {
   const [completedAchievement, setCompletedAchievement] = useState(null);
+  const [completedCount, setCompletedCount] = useState(parseInt(localStorage.getItem('centsi_learning_completed_count') || '0'));
+  
+  // Effect to update the completed count when localStorage changes
+  useEffect(() => {
+    const updateCompletedCount = () => {
+      setCompletedCount(parseInt(localStorage.getItem('centsi_learning_completed_count') || '0'));
+    };
+    
+    // Set up event listener for storage changes
+    window.addEventListener('storage', updateCompletedCount);
+    
+    // Initial check for completedCount in case it was reset by clearDataLoadState
+    updateCompletedCount();
+    
+    // Clean up event listener
+    return () => {
+      window.removeEventListener('storage', updateCompletedCount);
+    };
+  }, []);
 
   // Sample learning activities
   const learningActivities = [
@@ -85,15 +104,58 @@ const LearnPage = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <Card className="mb-6">
-            <h2 className="text-xl font-bold text-white mb-4">Financial Education</h2>
-            <p className="text-gray-300 mb-4">
-              Welcome to the Learn section! Complete learning activities below to improve your financial literacy
-              and earn achievements.
-            </p>
-            <p className="text-gray-300">
-              Mark an activity as completed when you've read through the material to earn the "Financial Scholar" achievement.
-            </p>
+          {/* Learning Progress Bar */}
+          <Card className="mb-6 p-4" gradientTop>
+            <div className="flex justify-between items-center mb-3">
+              <div>
+                <h2 className="text-xl font-bold text-white">Learning Progress</h2>
+                <div className="flex items-center text-sm text-gray-400">
+                  <span>
+                    {completedCount} activities completed
+                  </span>
+                </div>
+              </div>
+              <div className="w-12 h-12 bg-gradient-to-r from-secondary-500 to-primary-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                <span className="text-xl">📚</span>
+              </div>
+            </div>
+            
+            <div className="mb-4">
+              <div className="flex justify-between text-xs text-gray-400 mb-1">
+                <span>Knowledge Level</span>
+                <span>
+                  {(() => {
+                    if (completedCount >= 5) return 'Advanced';
+                    if (completedCount >= 3) return 'Intermediate';
+                    if (completedCount >= 1) return 'Beginner';
+                    return 'Getting Started';
+                  })()}
+                </span>
+              </div>
+              <div className="w-full bg-dark-600 rounded-full h-2">
+                <motion.div 
+                  className="bg-gradient-to-r from-secondary-500 to-primary-500 h-2 rounded-full" 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min(100, (completedCount / 5) * 100)}%` }}
+                  transition={{ duration: 0.8 }}
+                ></motion.div>
+              </div>
+            </div>
+            
+            <div className="flex justify-between text-sm text-gray-300">
+              <div className="text-center">
+                <div className="font-semibold text-lg text-white">Beginner</div>
+                <div className="text-xs text-gray-400">1-2 Activities</div>
+              </div>
+              <div className="text-center">
+                <div className="font-semibold text-lg text-white">Intermediate</div>
+                <div className="text-xs text-gray-400">3-4 Activities</div>
+              </div>
+              <div className="text-center">
+                <div className="font-semibold text-lg text-white">Advanced</div>
+                <div className="text-xs text-gray-400">5+ Activities</div>
+              </div>
+            </div>
           </Card>
           
           {/* Learning Activities */}
@@ -105,6 +167,8 @@ const LearnPage = () => {
               content={activity.content}
               onAchievementComplete={(achievement) => {
                 setCompletedAchievement(achievement);
+                // Update the completed count when an achievement is completed
+                setCompletedCount(parseInt(localStorage.getItem('centsi_learning_completed_count') || '0'));
                 // Auto-hide the notification after 5 seconds
                 setTimeout(() => {
                   setCompletedAchievement(null);

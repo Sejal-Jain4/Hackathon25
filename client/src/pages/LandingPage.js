@@ -49,7 +49,7 @@ const LandingPage = () => {
             Centsi
           </h1>
           <p className="text-2xl md:text-3xl font-light mb-8 text-primary-300">
-            Your AI Finance Coach for Students
+            Make Sense of Your Cents
           </p>
           
           <p className="max-w-2xl mx-auto text-lg text-gray-300 mb-10">
@@ -255,7 +255,7 @@ const LandingPage = () => {
               <h2 className="text-2xl font-bold bg-gradient-to-r from-accent-400 to-primary-400 bg-clip-text text-transparent">
                 Centsi
               </h2>
-              <p className="text-gray-400">Your AI Finance Coach for Students</p>
+              <p className="text-gray-400">Make Sense of Your Cents</p>
             </div>
             
             <div className="flex space-x-4">
