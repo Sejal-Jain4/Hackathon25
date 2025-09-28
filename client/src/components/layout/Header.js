@@ -28,7 +28,7 @@ const Header = ({ title, showBackButton = false, onBack, username }) => {
           >
             Centsi
           </span>
-          {username && <span className="ml-2 text-2xl font-bold text-white">{username}</span>}
+          {username && <span className="ml-2 text-2xl font-bold text-white">, {username}!</span>}
         </h1>
       ) : (
         <h1 className="text-2xl font-bold text-white text-left">

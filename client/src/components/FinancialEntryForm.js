@@ -5,19 +5,92 @@ import { FaTimes } from 'react-icons/fa';
 /**
  * FinancialEntryForm - A reusable form component for adding financial data
  * 
- * @param {string} type - The type of entry ('income', 'expense', or 'savings')
+ * @param {string|object} type - The type of entry ('income', 'expense', or 'savings') or an object with {type, index}
  * @param {function} onSubmit - Function to call when form is submitted
  * @param {function} onClose - Function to close the form
  */
 const FinancialEntryForm = ({ type, onSubmit, onClose }) => {
+  // Extract type and index if type is an object
+  const formType = typeof type === 'object' ? type.type : type;
+  const editIndex = typeof type === 'object' ? type.index : null;
+  const isEditing = editIndex !== null;
+  
   // Default form state based on type
   const getInitialFormState = () => {
+    // Get financial data from localStorage
+    const finances = window.localStorage.getItem('centsi_financial_data') 
+      ? JSON.parse(window.localStorage.getItem('centsi_financial_data')) 
+      : null;
+    
+    if (!finances) {
+      return getEmptyFormState(formType);
+    }
+    
+    // Handle editing existing items
+    if (isEditing) {
+      switch(formType) {
+        case 'expense':
+          if (finances.expenses && finances.expenses[editIndex]) {
+            const expense = finances.expenses[editIndex];
+            return {
+              name: expense.name || '',
+              amount: expense.amount?.toString() || '',
+              category: expense.category || 'other',
+              recurring: expense.recurring !== false, // Default to true if not specified
+              frequency: expense.frequency || 'monthly'
+            };
+          }
+          break;
+          
+        case 'savings':
+          if (finances.savingsGoals && finances.savingsGoals[editIndex]) {
+            const goal = finances.savingsGoals[editIndex];
+            return {
+              name: goal.name || '',
+              target: goal.target?.toString() || '',
+              current: goal.current?.toString() || '0',
+              deadline: goal.deadline || ''
+            };
+          }
+          break;
+      }
+    }
+    
+    // Handle regular cases (no editing or editing but item not found)
+    switch(formType) {
+      case 'income':
+        // If we have existing income data, use it for editing
+        if (finances.income) {
+          return {
+            amount: finances.income.amount?.toString() || '',
+            frequency: finances.income.frequency || 'monthly',
+            source: finances.income.source || '',
+            isVariable: finances.income.isVariable || false,
+            averageAmount: finances.income.averageAmount?.toString() || ''
+          };
+        }
+        break;
+        
+      case 'expense':
+      case 'savings':
+        // Return empty form for new items
+        break;
+    }
+    
+    // Return empty form state for all other cases
+    return getEmptyFormState(formType);
+  };
+  
+  // Helper to get empty form state
+  const getEmptyFormState = (type) => {
     switch(type) {
       case 'income':
         return {
           amount: '',
           frequency: 'monthly',
-          source: ''
+          source: '',
+          isVariable: false,
+          averageAmount: ''
         };
       case 'expense':
         return {
@@ -62,28 +135,38 @@ const FinancialEntryForm = ({ type, onSubmit, onClose }) => {
     const newErrors = {};
     
     // Common validations
-    if (type === 'income' || type === 'expense') {
+    if (formType === 'income' || formType === 'expense') {
       if (!formData.amount || isNaN(formData.amount) || parseFloat(formData.amount) <= 0) {
         newErrors.amount = 'Please enter a valid amount';
+      }
+      
+      if (formType === 'income') {
+        if (!formData.source) {
+          newErrors.source = 'Please select or specify an income source';
+        }
+        
+        if (formData.isVariable && (!formData.averageAmount || isNaN(formData.averageAmount) || parseFloat(formData.averageAmount) <= 0)) {
+          newErrors.averageAmount = 'Please provide a valid average amount';
+        }
       }
     }
     
     // Income-specific validations
-    if (type === 'income') {
+    if (formType === 'income') {
       if (!formData.source) {
         newErrors.source = 'Please enter an income source';
       }
     }
     
     // Expense-specific validations
-    if (type === 'expense') {
+    if (formType === 'expense') {
       if (!formData.name) {
         newErrors.name = 'Please enter an expense name';
       }
     }
     
     // Savings-specific validations
-    if (type === 'savings') {
+    if (formType === 'savings') {
       if (!formData.name) {
         newErrors.name = 'Please enter a goal name';
       }
@@ -105,10 +188,10 @@ const FinancialEntryForm = ({ type, onSubmit, onClose }) => {
     if (validateForm()) {
       // Convert numeric fields to numbers
       const processedFormData = { ...formData };
-      if (type === 'income' || type === 'expense') {
+      if (formType === 'income' || formType === 'expense') {
         processedFormData.amount = parseFloat(formData.amount);
       }
-      if (type === 'savings') {
+      if (formType === 'savings') {
         processedFormData.target = parseFloat(formData.target);
         processedFormData.current = parseFloat(formData.current);
       }
@@ -118,22 +201,64 @@ const FinancialEntryForm = ({ type, onSubmit, onClose }) => {
   };
 
   const getFormTitle = () => {
-    switch(type) {
+    switch(formType) {
       case 'income':
-        return 'Add Income';
+        return isEditing || formData.amount !== '' ? 'Edit Income' : 'Add Income';
       case 'expense':
-        return 'Add Expense';
+        return isEditing ? 'Edit Expense' : 'Add Expense';
       case 'savings':
-        return 'Add Savings Goal';
+        return isEditing ? 'Edit Savings Goal' : 'Add Savings Goal';
       default:
-        return 'Add Entry';
+        return isEditing ? 'Edit Entry' : 'Add Entry';
     }
   };
 
   const renderIncomeForm = () => (
     <>
+      <div className="mb-4">
+        <h3 className="text-lg font-medium text-primary-400 mb-2">Your Income Details</h3>
+        <p className="text-sm text-gray-400 mb-4">
+          {formData.amount ? 'Update your income information as needed.' : 'Add details about your primary income source.'}
+        </p>
+      </div>
+    
       <div className="form-group">
-        <label htmlFor="amount">Amount</label>
+        <label htmlFor="source">Income Source</label>
+        <div className="input-wrapper">
+          <select
+            name="source"
+            id="source"
+            value={formData.source}
+            onChange={handleChange}
+            className={errors.source ? 'error' : ''}
+          >
+            <option value="">Select a source or type below</option>
+            <option value="Salary">Salary/Wages</option>
+            <option value="Freelance">Freelance/Contract Work</option>
+            <option value="Investments">Investments</option>
+            <option value="Allowance">Allowance</option>
+            <option value="Part-time">Part-time Job</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        
+        {formData.source === 'Other' && (
+          <input
+            type="text"
+            name="customSource"
+            id="customSource"
+            placeholder="Specify your income source"
+            value={formData.customSource || ''}
+            onChange={(e) => setFormData({...formData, customSource: e.target.value, source: e.target.value ? e.target.value : 'Other'})}
+            className="mt-2"
+          />
+        )}
+        
+        {errors.source && <div className="error-message">{errors.source}</div>}
+      </div>
+      
+      <div className="form-group">
+        <label htmlFor="amount">Amount (per period)</label>
         <div className="input-wrapper">
           <span className="currency-symbol">$</span>
           <input
@@ -150,33 +275,55 @@ const FinancialEntryForm = ({ type, onSubmit, onClose }) => {
       </div>
       
       <div className="form-group">
-        <label htmlFor="frequency">Frequency</label>
+        <label htmlFor="frequency">How often do you receive this income?</label>
         <select
           name="frequency"
           id="frequency"
           value={formData.frequency}
           onChange={handleChange}
+          className={errors.frequency ? 'error' : ''}
         >
           <option value="weekly">Weekly</option>
-          <option value="bi-weekly">Bi-Weekly</option>
+          <option value="bi-weekly">Every Two Weeks</option>
           <option value="monthly">Monthly</option>
           <option value="annually">Annually</option>
         </select>
+        {errors.frequency && <div className="error-message">{errors.frequency}</div>}
       </div>
       
       <div className="form-group">
-        <label htmlFor="source">Source</label>
-        <input
-          type="text"
-          name="source"
-          id="source"
-          value={formData.source}
-          onChange={handleChange}
-          className={errors.source ? 'error' : ''}
-          placeholder="e.g., Salary, Freelance"
-        />
-        {errors.source && <div className="error-message">{errors.source}</div>}
+        <div className="flex items-center">
+          <input
+            type="checkbox"
+            id="isVariable"
+            name="isVariable"
+            checked={formData.isVariable}
+            onChange={handleChange}
+            className="mr-2"
+          />
+          <label htmlFor="isVariable">This income amount varies (is not consistent)</label>
+        </div>
+        <p className="text-xs text-gray-500 mt-1">Check this if your income changes from period to period</p>
       </div>
+      
+      {formData.isVariable && (
+        <div className="form-group">
+          <label htmlFor="averageAmount">Estimated average amount</label>
+          <div className="input-wrapper">
+            <span className="currency-symbol">$</span>
+            <input
+              type="number"
+              step="0.01"
+              name="averageAmount"
+              id="averageAmount"
+              value={formData.averageAmount || formData.amount}
+              onChange={handleChange}
+              placeholder="Average income amount"
+            />
+          </div>
+          <p className="text-xs text-gray-500 mt-1">Your best estimate of what you typically receive</p>
+        </div>
+      )}
     </>
   );
   
@@ -327,7 +474,7 @@ const FinancialEntryForm = ({ type, onSubmit, onClose }) => {
   );
 
   const renderFormFields = () => {
-    switch(type) {
+    switch(formType) {
       case 'income':
         return renderIncomeForm();
       case 'expense':
@@ -358,6 +505,27 @@ const FinancialEntryForm = ({ type, onSubmit, onClose }) => {
           {renderFormFields()}
           
           <div className="form-actions">
+            {isEditing && (formType === 'expense' || formType === 'savings') && (
+              <button 
+                type="button" 
+                className="delete-button" 
+                onClick={() => {
+                  const finances = JSON.parse(localStorage.getItem('centsi_financial_data'));
+                  if (finances) {
+                    if (formType === 'expense' && finances.expenses) {
+                      finances.expenses.splice(editIndex, 1);
+                      localStorage.setItem('centsi_financial_data', JSON.stringify(finances));
+                    } else if (formType === 'savings' && finances.savingsGoals) {
+                      finances.savingsGoals.splice(editIndex, 1);
+                      localStorage.setItem('centsi_financial_data', JSON.stringify(finances));
+                    }
+                    onClose();
+                  }
+                }}
+              >
+                Delete
+              </button>
+            )}
             <button type="button" className="cancel-button" onClick={onClose}>
               Cancel
             </button>

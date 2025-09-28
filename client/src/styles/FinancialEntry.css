@@ -13,12 +13,14 @@
 }
 
 .financial-entry-form {
-  background-color: white;
+  background-color: #1e1e2e; /* dark-800 equivalent */
+  border: 1px solid #2d2d3d; /* dark-700 equivalent */
+  color: #f1f1f1;
   border-radius: 10px;
   padding: 24px;
   width: 90%;
   max-width: 500px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
 }
 
 .form-header {
@@ -31,7 +33,8 @@
 .form-header h2 {
   margin: 0;
   font-size: 1.5rem;
-  color: #333;
+  color: #ffffff;
+  font-weight: bold;
 }
 
 .close-button {
@@ -39,11 +42,11 @@
   border: none;
   font-size: 1.2rem;
   cursor: pointer;
-  color: #888;
+  color: #a0a0a0;
 }
 
 .close-button:hover {
-  color: #333;
+  color: #ffffff;
 }
 
 .form-group {
@@ -54,7 +57,7 @@
   display: block;
   margin-bottom: 6px;
   font-weight: 500;
-  color: #555;
+  color: #e0e0e0;
 }
 
 .form-group input[type="text"],
@@ -63,9 +66,11 @@
 .form-group select {
   width: 100%;
   padding: 10px;
-  border: 1px solid #ddd;
+  border: 1px solid #3d3d4d;
   border-radius: 4px;
   font-size: 16px;
+  background-color: #2d2d3d;
+  color: #ffffff;
 }
 
 .form-group.checkbox {
@@ -115,7 +120,8 @@ select.error {
 }
 
 .cancel-button,
-.submit-button {
+.submit-button,
+.delete-button {
   padding: 10px 20px;
   border: none;
   border-radius: 4px;
@@ -125,21 +131,34 @@ select.error {
 }
 
 .cancel-button {
-  background-color: #f5f5f5;
-  color: #555;
+  background-color: #3d3d4d;
+  color: #e0e0e0;
 }
 
 .submit-button {
-  background-color: #4caf50;
+  background: linear-gradient(to right, #4caf50, #2c8c2c);
   color: white;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.delete-button {
+  background: linear-gradient(to right, #f44336, #d32f2f);
+  color: white;
+  margin-right: auto;  /* pushes this button to the left */
+  margin-left: 0;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 .cancel-button:hover {
-  background-color: #e0e0e0;
+  background-color: #4d4d5d;
+}
+
+.delete-button:hover {
+  background: linear-gradient(to right, #e53935, #c62828);
 }
 
 .submit-button:hover {
-  background-color: #3b8a3e;
+  background: linear-gradient(to right, #45a049, #237323);
 }
 
 /* Quick action buttons */

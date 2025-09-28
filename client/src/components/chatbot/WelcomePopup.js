@@ -13,10 +13,12 @@ const WelcomePopup = ({ isOpen, onClose, userProfile }) => {
     const storedUsername = localStorage.getItem('centsi_username') || '';
     setUsername(storedUsername);
     
-    if (isOpen && userProfile) {
+    // Only generate welcome message if component is open, has profile data,
+    // and no welcome message has been generated yet
+    if (isOpen && userProfile && !welcomeMessage) {
       generateWelcomeMessage();
     }
-  }, [isOpen, userProfile]);
+  }, [isOpen, userProfile, welcomeMessage]);
   
   const generateWelcomeMessage = async () => {
     setIsLoading(true);

@@ -75,11 +75,11 @@ export const getFinancialData = () => {
   // If no stored data exists, generate from user profile
   const userProfile = getUserProfile();
   
-  // Extract relevant data from user profile
+  // Extract relevant data from user profile without including any default savings goals
   const financialData = {
     income: userProfile.income || { amount: 0, frequency: 'monthly', source: 'Unspecified' },
     expenses: userProfile.expenses || [],
-    savingsGoals: [userProfile.savingsGoal || { name: 'Emergency Fund', target: 1000, current: 0 }],
+    savingsGoals: [], // Start with empty savings goals - users will add their own
     totalBalance: calculateBalance(userProfile)
   };
   
@@ -215,6 +215,26 @@ export const updateSavingsGoal = (index, goalData) => {
   // Update goal at index
   if (index >= 0 && index < financialData.savingsGoals.length) {
     financialData.savingsGoals[index] = goalData;
+  }
+  
+  return saveFinancialData(financialData);
+};
+
+/**
+ * Delete a savings goal
+ */
+export const removeSavingsGoal = (index) => {
+  const financialData = getFinancialData();
+  
+  // Initialize savingsGoals array if it doesn't exist
+  if (!financialData.savingsGoals) {
+    financialData.savingsGoals = [];
+    return financialData;
+  }
+  
+  // Remove goal at index
+  if (index >= 0 && index < financialData.savingsGoals.length) {
+    financialData.savingsGoals.splice(index, 1);
   }
   
   return saveFinancialData(financialData);

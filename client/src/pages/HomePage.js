@@ -7,7 +7,12 @@ import {
   getCompleteUserData, 
   addIncome, 
   addExpense, 
-  addSavingsGoal
+  addSavingsGoal,
+  updateExpense,
+  removeExpense,
+  updateSavingsGoal,
+  removeSavingsGoal,
+  getUsername
 } from '../utils/dataService';
 import { 
   FaUpload, 
@@ -22,7 +27,6 @@ import { BsDash } from 'react-icons/bs';
 import piggyBank from '../assets/piggy.png';
 import WelcomePopup from '../components/chatbot/WelcomePopup';
 import ChatbotModal from '../components/chatbot/ChatbotModal';
-import QuickActionButtons from '../components/QuickActionButtons';
 import FinancialEntryForm from '../components/FinancialEntryForm';
 import '../components/chatbot/ChatDot.css';
 import '../styles/FinancialEntry.css';
@@ -36,14 +40,16 @@ const HomePage = () => {
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
   const [questionnaire, setQuestionnaire] = useState(null);
-  const [activeForm, setActiveForm] = useState(null);  // 'income', 'expense', or 'savings'
+  const [activeForm, setActiveForm] = useState(null);  // Can be string ('income', 'expense', 'savings') or object ({type: 'expense', index: 0})
 
   // Load user data on component mount
   useEffect(() => {
     // Get user data from enhanced data service
     const data = getCompleteUserData();
     setUserData(data);
-    setUsername(data.profile?.name || 'User');
+    
+    // Use getUsername to get the username directly from localStorage
+    setUsername(getUsername());
     
     // Set data loaded if we have financial data
     if (data.finances) {
@@ -54,42 +60,66 @@ const HomePage = () => {
     if (data.questionnaire) {
       setQuestionnaire(data.questionnaire);
       
-      // Show welcome popup with a small delay
-      setTimeout(() => {
-        setShowWelcomePopup(true);
-      }, 1500);
+      // Check if welcome popup has been shown in this session
+      const hasShownWelcome = sessionStorage.getItem('centsi_welcome_shown');
+      
+      if (!hasShownWelcome) {
+        // Show welcome popup with a small delay only if not shown before
+        setTimeout(() => {
+          setShowWelcomePopup(true);
+          // Mark as shown for this session
+          sessionStorage.setItem('centsi_welcome_shown', 'true');
+        }, 1500);
+      }
     }
   }, []);
   
   // Handle form submissions for financial entries
   const handleFormSubmit = (formData) => {
-    switch(activeForm) {
-      case 'income':
-        const updatedData = addIncome(formData);
-        setUserData({
-          ...userData,
-          finances: updatedData
-        });
-        break;
-        
-      case 'expense':
-        const updatedDataWithExpense = addExpense(formData);
-        setUserData({
-          ...userData,
-          finances: updatedDataWithExpense
-        });
-        break;
-        
-      case 'savings':
-        const updatedDataWithSavings = addSavingsGoal(formData);
-        setUserData({
-          ...userData,
-          finances: updatedDataWithSavings
-        });
-        break;
-        
-      default:
-        console.error('Unknown form type:', activeForm);
+    let updatedData;
+    
+    // Check if activeForm is an object with type and index (for editing)
+    if (activeForm && typeof activeForm === 'object') {
+      const { type, index } = activeForm;
+      
+      switch(type) {
+        case 'expense':
+          updatedData = updateExpense(index, formData);
+          break;
+          
+        case 'savings':
+          updatedData = updateSavingsGoal(index, formData);
+          break;
+          
+        default:
+          console.error('Unknown form type for editing:', type);
+      }
+    } else {
+      // Handle adding new entries
+      switch(activeForm) {
+        case 'income':
+          updatedData = addIncome(formData);
+          break;
+          
+        case 'expense':
+          updatedData = addExpense(formData);
+          break;
+          
+        case 'savings':
+          updatedData = addSavingsGoal(formData);
+          break;
+          
+        default:
+          console.error('Unknown form type:', activeForm);
+      }
+    }
+    
+    // Update user data if we got updated data back
+    if (updatedData) {
+      setUserData({
+        ...userData,
+        finances: updatedData
+      });
     }
     
     // Close the form
@@ -190,21 +220,15 @@ const HomePage = () => {
   const renderLoadedDashboard = () => {
     const finances = userData.finances;
     
-    // Quick action buttons for adding data
-    const renderQuickActions = () => (
-      <QuickActionButtons 
-        onAddIncome={() => setActiveForm('income')}
-        onAddExpense={() => setActiveForm('expense')}
-        onAddSavings={() => setActiveForm('savings')}
-      />
-    );
-    
     return (
     <>
       <Card className="mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-white">Monthly Balance</h2>
+        </div>
+
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-white mb-2">Monthly Balance</h2>
             <p className="text-3xl font-bold bg-gradient-to-r from-accent-400 to-primary-400 bg-clip-text text-transparent">
               ${finances.totalBalance.toFixed(2)}
             </p>
@@ -217,26 +241,83 @@ const HomePage = () => {
           </div>
         </div>
         
-        <div className="mt-4 grid grid-cols-2 gap-4">
-          <SmallCard>
-            <p className="text-gray-400 text-sm">Income</p>
-            <p className="text-xl font-semibold text-primary-400">
-              ${finances.income.amount}
-              <span className="text-xs text-gray-500 ml-1">/{finances.income.frequency}</span>
-            </p>
-          </SmallCard>
-          <SmallCard>
-            <p className="text-gray-400 text-sm">Expenses</p>
-            <p className="text-xl font-semibold text-secondary-400">
-              ${finances.expenses.reduce((sum, expense) => sum + expense.amount, 0)}
-              <span className="text-xs text-gray-500 ml-1">/month</span>
-            </p>
-          </SmallCard>
+        <div className="mt-4">
+          <Card className="mb-3">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-gray-400 text-sm">Income</p>
+                <p className="text-xl font-semibold text-primary-400">
+                  ${finances.income.amount}
+                  <span className="text-xs text-gray-500 ml-1">/{finances.income.frequency}</span>
+                </p>
+                <p className="text-xs text-gray-500">Source: {finances.income.source || 'Not specified'}</p>
+              </div>
+              <button 
+                onClick={() => setActiveForm('income')}
+                className="bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-lg px-3 py-1 text-sm transition-colors flex items-center shadow-md"
+              >
+                <FaPlus className="mr-1" size={10} /> Adjust
+              </button>
+            </div>
+          </Card>
+          
+          <Card>
+            <div className="flex justify-between items-center mb-3">
+              <div>
+                <p className="text-gray-400 text-sm">Expenses</p>
+                <p className="text-xl font-semibold text-secondary-400">
+                  ${finances.expenses.reduce((sum, expense) => sum + expense.amount, 0)}
+                  <span className="text-xs text-gray-500 ml-1">/month</span>
+                </p>
+                <p className="text-xs text-gray-500">{finances.expenses.length} expense categories</p>
+              </div>
+              <button 
+                onClick={() => setActiveForm('expense')}
+                className="bg-gradient-to-r from-secondary-500 to-secondary-600 hover:from-secondary-600 hover:to-secondary-700 text-white rounded-lg px-3 py-1 text-sm transition-colors flex items-center shadow-md"
+              >
+                <FaPlus className="mr-1" size={10} /> Add
+              </button>
+            </div>
+            
+            {finances.expenses.length > 0 && (
+              <div className="mt-3 space-y-2 max-h-40 overflow-y-auto">
+                {finances.expenses.map((expense, index) => (
+                  <div key={index} className="flex justify-between items-center p-2 bg-dark-700 rounded">
+                    <div>
+                      <p className="text-sm font-medium text-white">{expense.name}</p>
+                      <p className="text-xs text-gray-500">{expense.category}</p>
+                    </div>
+                    <div className="flex items-center">
+                      <p className="text-secondary-400 font-medium mr-3">
+                        ${expense.amount}
+                        <span className="text-xs text-gray-500">/{expense.frequency || 'month'}</span>
+                      </p>
+                      <button 
+                        onClick={() => setActiveForm({ type: 'expense', index: index })}
+                        className="bg-gradient-to-r from-dark-600 to-dark-500 hover:from-dark-500 hover:to-dark-400 text-white rounded px-2 py-1 text-xs transition-colors mr-1 shadow-sm"
+                      >
+                        Edit
+                      </button>
+                      <button 
+                        onClick={() => {
+                          const updatedData = removeExpense(index);
+                          setUserData({
+                            ...userData,
+                            finances: updatedData
+                          });
+                        }}
+                        className="bg-gradient-to-r from-secondary-700 to-secondary-800 hover:from-secondary-800 hover:to-secondary-900 text-white rounded px-2 py-1 text-xs transition-colors shadow-sm"
+                      >
+                        <BsDash size={12} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
         </div>
       </Card>
-      
-      {/* Quick Action Buttons */}
-      {renderQuickActions()}
       
       {/* Savings Goals Card */}
       <Card className="mb-6" delay={0.1}>
@@ -244,7 +325,7 @@ const HomePage = () => {
           <h2 className="text-xl font-bold text-white">Savings Goals</h2>
           <button 
             onClick={() => setActiveForm('savings')}
-            className="bg-dark-700 hover:bg-dark-600 text-white rounded-full p-2 transition-colors"
+            className="bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-white rounded-full p-2 transition-colors shadow-md"
           >
             <FaPlus />
           </button>
@@ -260,9 +341,17 @@ const HomePage = () => {
                     {goal.deadline ? `Target date: ${new Date(goal.deadline).toLocaleDateString()}` : 'Ongoing goal'}
                   </p>
                 </div>
-                <p className="text-accent-400 font-medium">
-                  ${goal.current}/${goal.target}
-                </p>
+                <div className="flex items-center">
+                  <p className="text-accent-400 font-medium mr-3">
+                    ${goal.current}/${goal.target}
+                  </p>
+                  <button 
+                    onClick={() => setActiveForm({ type: 'savings', index: index })}
+                    className="bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-white rounded-lg px-3 py-1 text-sm transition-colors shadow-sm"
+                  >
+                    Edit
+                  </button>
+                </div>
               </div>
               <div className="w-full bg-dark-600 rounded-full h-3">
                 <motion.div 
@@ -280,7 +369,7 @@ const HomePage = () => {
               <p className="text-gray-400">No savings goals yet</p>
               <button 
                 onClick={() => setActiveForm('savings')}
-                className="mt-2 px-4 py-2 bg-primary-600 text-white rounded-lg"
+                className="mt-2 px-4 py-2 bg-gradient-to-r from-accent-500 to-primary-500 hover:from-accent-600 hover:to-primary-600 text-white rounded-lg shadow-md transition-colors"
               >
                 Add a goal
               </button>
@@ -331,7 +420,7 @@ const HomePage = () => {
               <p className="text-gray-400">No expenses recorded yet</p>
               <button 
                 onClick={() => setActiveForm('expense')}
-                className="mt-2 px-4 py-2 bg-primary-600 text-white rounded-lg"
+                className="mt-2 px-4 py-2 bg-gradient-to-r from-secondary-500 to-secondary-600 hover:from-secondary-600 hover:to-secondary-700 text-white rounded-lg shadow-md transition-colors"
               >
                 Add an expense
               </button>
@@ -881,10 +970,14 @@ const HomePage = () => {
         </div>
       </div>
       
-      {/* Welcome Popup */}
+      {/* Welcome Popup - Only shows once per session */}
       <WelcomePopup 
         isOpen={showWelcomePopup} 
-        onClose={() => setShowWelcomePopup(false)} 
+        onClose={() => {
+          setShowWelcomePopup(false);
+          // Ensure it stays marked as shown
+          sessionStorage.setItem('centsi_welcome_shown', 'true');
+        }} 
         userProfile={questionnaire}
       />
       
