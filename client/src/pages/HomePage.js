@@ -921,10 +921,9 @@ const HomePage = () => {
             }}
           >
             <button 
-              className="bg-gradient-to-r from-blue-500 to-primary-500 text-white rounded-full w-16 h-16 flex items-center justify-center shadow-xl relative overflow-hidden"
+              className="bg-gradient-to-r from-secondary-500 to-blue-500 text-white rounded-full w-16 h-16 flex items-center justify-center shadow-xl"
               onClick={() => setShowChatModal(true)}
             >
-              <div className="absolute inset-0 bg-white opacity-10 chat-dot-pulse"></div>
               <FaCommentDots className="h-7 w-7" />
             </button>
             <p className="text-xs text-center mt-2 text-gray-400">Chat</p>
