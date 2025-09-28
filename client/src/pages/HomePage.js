@@ -1,25 +1,99 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import Header from '../components/layout/Header';
-import { getUserProfile, getUsername } from '../utils/mockDataService';
-import { FaUpload, FaSpinner, FaChartLine, FaMoneyBillWave } from 'react-icons/fa';
+import { 
+  getCompleteUserData, 
+  addIncome, 
+  addExpense, 
+  addSavingsGoal
+} from '../utils/dataService';
+import { 
+  FaUpload, 
+  FaSpinner, 
+  FaChartLine, 
+  FaMoneyBillWave, 
+  FaRobot, 
+  FaCommentDots, 
+  FaPlus
+} from 'react-icons/fa';
 import { BsDash } from 'react-icons/bs';
 import piggyBank from '../assets/piggy.png';
+import WelcomePopup from '../components/chatbot/WelcomePopup';
+import ChatbotModal from '../components/chatbot/ChatbotModal';
+import QuickActionButtons from '../components/QuickActionButtons';
+import FinancialEntryForm from '../components/FinancialEntryForm';
+import '../components/chatbot/ChatDot.css';
+import '../styles/FinancialEntry.css';
 
 const HomePage = () => {
   const navigate = useNavigate();
-  const [userProfile, setUserProfile] = useState(null);
+  const [userData, setUserData] = useState(null);
   const [username, setUsername] = useState('');
-  const [balance, setBalance] = useState(0);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showWelcomePopup, setShowWelcomePopup] = useState(false);
+  const [showChatModal, setShowChatModal] = useState(false);
+  const [questionnaire, setQuestionnaire] = useState(null);
+  const [activeForm, setActiveForm] = useState(null);  // 'income', 'expense', or 'savings'
 
-  // Load user name on component mount, but not financial data yet
+  // Load user data on component mount
   useEffect(() => {
-    const name = getUsername();
-    setUsername(name);
+    // Get user data from enhanced data service
+    const data = getCompleteUserData();
+    setUserData(data);
+    setUsername(data.profile?.name || 'User');
+    
+    // Set data loaded if we have financial data
+    if (data.finances) {
+      setDataLoaded(true);
+    }
+    
+    // Get questionnaire responses
+    if (data.questionnaire) {
+      setQuestionnaire(data.questionnaire);
+      
+      // Show welcome popup with a small delay
+      setTimeout(() => {
+        setShowWelcomePopup(true);
+      }, 1500);
+    }
   }, []);
+  
+  // Handle form submissions for financial entries
+  const handleFormSubmit = (formData) => {
+    switch(activeForm) {
+      case 'income':
+        const updatedData = addIncome(formData);
+        setUserData({
+          ...userData,
+          finances: updatedData
+        });
+        break;
+        
+      case 'expense':
+        const updatedDataWithExpense = addExpense(formData);
+        setUserData({
+          ...userData,
+          finances: updatedDataWithExpense
+        });
+        break;
+        
+      case 'savings':
+        const updatedDataWithSavings = addSavingsGoal(formData);
+        setUserData({
+          ...userData,
+          finances: updatedDataWithSavings
+        });
+        break;
+        
+      default:
+        console.error('Unknown form type:', activeForm);
+    }
+    
+    // Close the form
+    setActiveForm(null);
+  };
   
   // Function to simulate uploading financial data
   const handleUploadData = () => {
@@ -27,21 +101,9 @@ const HomePage = () => {
     
     // Simulate API delay
     setTimeout(() => {
-      const profile = getUserProfile();
-      setUserProfile(profile);
-      
-      // Calculate total balance
-      const totalExpenses = profile.expenses.reduce((sum, expense) => sum + expense.amount, 0);
-      let incomeAmount = profile.income.amount;
-      
-      // Convert to monthly equivalent for consistency
-      if (profile.income.frequency === 'weekly') {
-        incomeAmount = incomeAmount * 4;
-      } else if (profile.income.frequency === 'bi-weekly') {
-        incomeAmount = incomeAmount * 2;
-      }
-      
-      setBalance(incomeAmount - totalExpenses);
+      // We're already using the enhanced data service now
+      const data = getCompleteUserData();
+      setUserData(data);
       setDataLoaded(true);
       setUploading(false);
     }, 1500); // 1.5 second simulated loading time
@@ -140,22 +202,16 @@ const HomePage = () => {
 
   // Dashboard with real data
   const renderLoadedDashboard = () => {
-    // Create additional savings goals for display
-    const savingsGoals = [
-      userProfile.savingsGoal,
-      { 
-        name: 'New Car Fund', 
-        target: 15000, 
-        current: 3500,
-        milestone: 'Save $5000'
-      },
-      { 
-        name: 'Home Down Payment', 
-        target: 25000, 
-        current: 2000,
-        milestone: 'Save $5000'
-      }
-    ];
+    const finances = userData.finances;
+    
+    // Quick action buttons for adding data
+    const renderQuickActions = () => (
+      <QuickActionButtons 
+        onAddIncome={() => setActiveForm('income')}
+        onAddExpense={() => setActiveForm('expense')}
+        onAddSavings={() => setActiveForm('savings')}
+      />
+    );
     
     return (
     <>
@@ -169,7 +225,7 @@ const HomePage = () => {
           <div>
             <h2 className="text-xl font-bold text-white mb-2">Monthly Balance</h2>
             <p className="text-3xl font-bold bg-gradient-to-r from-accent-400 to-primary-400 bg-clip-text text-transparent">
-              ${balance.toFixed(2)}
+              ${finances.totalBalance.toFixed(2)}
             </p>
             <p className="text-sm text-gray-500 mt-1">Last updated today</p>
           </div>
@@ -184,36 +240,48 @@ const HomePage = () => {
           <div className="bg-dark-700 rounded-lg p-3">
             <p className="text-gray-400 text-sm">Income</p>
             <p className="text-xl font-semibold text-primary-400">
-              ${userProfile.income.amount}
-              <span className="text-xs text-gray-500 ml-1">/{userProfile.income.frequency}</span>
+              ${finances.income.amount}
+              <span className="text-xs text-gray-500 ml-1">/{finances.income.frequency}</span>
             </p>
           </div>
           <div className="bg-dark-700 rounded-lg p-3">
             <p className="text-gray-400 text-sm">Expenses</p>
             <p className="text-xl font-semibold text-secondary-400">
-              ${userProfile.expenses.reduce((sum, expense) => sum + expense.amount, 0)}
+              ${finances.expenses.reduce((sum, expense) => sum + expense.amount, 0)}
               <span className="text-xs text-gray-500 ml-1">/month</span>
             </p>
           </div>
         </div>
       </motion.div>
       
-      {/* Savings Goals Card - Moved Up */}
+      {/* Quick Action Buttons */}
+      {renderQuickActions()}
+      
+      {/* Savings Goals Card */}
       <motion.div 
         className="bg-dark-800 rounded-xl shadow-xl p-6 mb-6 border border-dark-700"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
       >
-        <h2 className="text-xl font-bold text-white mb-4">Savings Goals</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-white">Savings Goals</h2>
+          <button 
+            onClick={() => setActiveForm('savings')}
+            className="bg-dark-700 hover:bg-dark-600 text-white rounded-full p-2 transition-colors"
+          >
+            <FaPlus />
+          </button>
+        </div>
+        
         <div className="space-y-6">
-          {savingsGoals.map((goal, index) => (
+          {finances.savingsGoals.map((goal, index) => (
             <div key={index} className="space-y-2">
               <div className="flex justify-between items-center mb-1">
                 <div>
                   <p className="font-medium text-white">{goal.name}</p>
                   <p className="text-xs text-gray-500">
-                    Next milestone: {goal.milestone || userProfile.nextMilestone.name}
+                    {goal.deadline ? `Target date: ${new Date(goal.deadline).toLocaleDateString()}` : 'Ongoing goal'}
                   </p>
                 </div>
                 <p className="text-accent-400 font-medium">
@@ -230,22 +298,43 @@ const HomePage = () => {
               </div>
             </div>
           ))}
+          
+          {finances.savingsGoals.length === 0 && (
+            <div className="text-center py-4">
+              <p className="text-gray-400">No savings goals yet</p>
+              <button 
+                onClick={() => setActiveForm('savings')}
+                className="mt-2 px-4 py-2 bg-primary-600 text-white rounded-lg"
+              >
+                Add a goal
+              </button>
+            </div>
+          )}
         </div>
       </motion.div>
       
-      {/* Recent Activity Card - Moved to Bottom */}
+      {/* Recent Activity Card */}
       <motion.div 
         className="bg-dark-800 rounded-xl shadow-xl p-6 mb-6 border border-dark-700"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
       >
-        <h2 className="text-xl font-bold text-white mb-4">Recent Activity</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-white">Recent Activity</h2>
+          <button 
+            onClick={() => setActiveForm('expense')}
+            className="bg-dark-700 hover:bg-dark-600 text-white rounded-full p-2 transition-colors"
+          >
+            <FaPlus />
+          </button>
+        </div>
+        
         <div className="space-y-4">
-          {userProfile.expenses.slice(0, 3).map((expense, index) => (
+          {finances.expenses.slice(0, 3).map((expense, index) => (
             <div key={index} className="flex justify-between items-center border-b border-dark-600 pb-3">
               <div>
-                <p className="font-medium text-white">{expense.category}</p>
+                <p className="font-medium text-white">{expense.name || expense.category}</p>
                 <p className="text-xs text-gray-500">
                   {new Date(Date.now() - (index * 2 * 86400000)).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                 </p>
@@ -253,15 +342,30 @@ const HomePage = () => {
               <p className="text-error font-medium">-${expense.amount.toFixed(2)}</p>
             </div>
           ))}
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="font-medium text-white">{userProfile.income.source}</p>
-              <p className="text-xs text-gray-500">
-                {new Date(Date.now() - (6 * 86400000)).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-              </p>
+          
+          {finances.expenses.length > 0 && (
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="font-medium text-white">{finances.income.source}</p>
+                <p className="text-xs text-gray-500">
+                  {new Date(Date.now() - (6 * 86400000)).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                </p>
+              </div>
+              <p className="text-success font-medium">+${finances.income.amount.toFixed(2)}</p>
             </div>
-            <p className="text-success font-medium">+${userProfile.income.amount.toFixed(2)}</p>
-          </div>
+          )}
+          
+          {finances.expenses.length === 0 && (
+            <div className="text-center py-4">
+              <p className="text-gray-400">No expenses recorded yet</p>
+              <button 
+                onClick={() => setActiveForm('expense')}
+                className="mt-2 px-4 py-2 bg-primary-600 text-white rounded-lg"
+              >
+                Add an expense
+              </button>
+            </div>
+          )}
         </div>
       </motion.div>
     </>
@@ -406,16 +510,16 @@ const HomePage = () => {
     // Calculate savings values with more realistic numbers
     const monthlySavingsTarget = 2500; // More realistic target amount
     // Get the actual income and calculate a more realistic current savings amount (30% of income minus expenses)
-    const monthlyIncome = userProfile.income.amount;
-    const monthlyExpenses = userProfile.expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const monthlyIncome = userData.finances.income.amount;
+    const monthlyExpenses = userData.finances.expenses.reduce((sum, expense) => sum + expense.amount, 0);
     const targetSavingsPercentage = 0.30; // Target saving 30% of income
     const targetSavings = monthlyIncome * targetSavingsPercentage;
     const currentSavings = Math.max(0, (monthlyIncome - monthlyExpenses));
     const savingsPercentage = Math.min(Math.round((currentSavings / monthlySavingsTarget) * 100), 100);
     
     // Calculate budget values
-    const monthlyBudget = userProfile.income.amount;
-    const budgetUsed = userProfile.expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const monthlyBudget = userData.finances.income.amount;
+    const budgetUsed = userData.finances.expenses.reduce((sum, expense) => sum + expense.amount, 0);
     const budgetRemaining = monthlyBudget - budgetUsed;
     const budgetPercentage = Math.min(Math.round((budgetRemaining / monthlyBudget) * 100), 100);
 
@@ -786,8 +890,41 @@ const HomePage = () => {
         {/* Main dashboard content */}
         {!dataLoaded ? renderEmptyDashboard() : renderLoadedDashboard()}
         
+        {/* Financial Entry Forms */}
+        <AnimatePresence>
+          {activeForm && (
+            <FinancialEntryForm
+              type={activeForm}
+              onSubmit={handleFormSubmit}
+              onClose={() => setActiveForm(null)}
+            />
+          )}
+        </AnimatePresence>
+        
         {/* Button Group */}
         <div className="fixed bottom-24 right-6 space-y-4">
+          {/* Chatbot Button */}
+          <motion.div
+            className="flex flex-col items-center"
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ 
+              type: "spring", 
+              stiffness: 260, 
+              damping: 20,
+              delay: 0.7
+            }}
+          >
+            <button 
+              className="bg-gradient-to-r from-blue-500 to-primary-500 text-white rounded-full w-16 h-16 flex items-center justify-center shadow-xl relative overflow-hidden"
+              onClick={() => setShowChatModal(true)}
+            >
+              <div className="absolute inset-0 bg-white opacity-10 chat-dot-pulse"></div>
+              <FaCommentDots className="h-7 w-7" />
+            </button>
+            <p className="text-xs text-center mt-2 text-gray-400">Chat</p>
+          </motion.div>
+          
           {/* AI Coach Button */}
           <motion.div
             className="flex flex-col items-center"
@@ -840,6 +977,20 @@ const HomePage = () => {
           </motion.div>
         </div>
       </div>
+      
+      {/* Welcome Popup */}
+      <WelcomePopup 
+        isOpen={showWelcomePopup} 
+        onClose={() => setShowWelcomePopup(false)} 
+        userProfile={questionnaire}
+      />
+      
+      {/* Chatbot Modal */}
+      <ChatbotModal 
+        isOpen={showChatModal}
+        onClose={() => setShowChatModal(false)}
+        userProfile={userData}  // Passing complete user data instead of just questionnaire
+      />
     </div>
   );
 };

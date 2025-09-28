@@ -1,0 +1,77 @@
+/* ChatDot.css */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.chat-dot-pulse {
+  animation: pulse 2s infinite;
+}
+
+/* Message animation */
+@keyframes message-in {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message-animation {
+  animation: message-in 0.3s forwards;
+}
+
+/* Sound wave animations for speaking indication */
+@keyframes sound-wave1 {
+  0%, 100% {
+    height: 8px;
+  }
+  50% {
+    height: 16px;
+  }
+}
+
+@keyframes sound-wave2 {
+  0%, 100% {
+    height: 4px;
+  }
+  50% {
+    height: 12px;
+  }
+}
+
+@keyframes sound-wave3 {
+  0%, 100% {
+    height: 12px;
+  }
+  50% {
+    height: 4px;
+  }
+}
+
+.animate-sound-wave1 {
+  animation: sound-wave1 0.5s infinite;
+}
+
+.animate-sound-wave2 {
+  animation: sound-wave2 0.5s infinite;
+  animation-delay: 0.15s;
+}
+
+.animate-sound-wave3 {
+  animation: sound-wave3 0.5s infinite;
+  animation-delay: 0.3s;
+}
