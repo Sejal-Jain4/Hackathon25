@@ -3,6 +3,8 @@ import VoiceAssistant from '../components/voice/VoiceAssistant';
 import AiResponse from '../components/voice/AiResponse';
 import ChatInterface from '../components/voice/ChatInterface';
 import axios from 'axios';
+import Header from '../components/layout/Header';
+import { Card } from '../components/ui';
 
 const AICoachPage = () => {
   const [isListening, setIsListening] = useState(false);
@@ -113,11 +115,8 @@ const AICoachPage = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white">
-      <div className="bg-primary-500 text-white p-4">
-        <h1 className="text-2xl font-bold">AI Finance Coach</h1>
-        <p className="text-sm">Ask Centsi about budgeting, saving, or financial tips!</p>
-      </div>
+    <div className="flex flex-col h-full bg-dark-900">
+      <Header title="AI Finance Coach" />
       
       <div className="flex-grow overflow-y-auto">
         <ChatInterface messages={messages} />
@@ -125,14 +124,16 @@ const AICoachPage = () => {
       </div>
       
       {isProcessing && (
-        <div className="flex justify-center p-4">
-          <div className="flex space-x-2 items-center">
-            <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
-            <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-            <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
-            <span className="text-sm text-gray-500 ml-2">Centsi is thinking...</span>
+        <Card className="mb-4 mx-4">
+          <div className="flex justify-center p-2">
+            <div className="flex space-x-2 items-center">
+              <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
+              <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+              <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+              <span className="text-sm text-gray-500 ml-2">Centsi is thinking...</span>
+            </div>
           </div>
-        </div>
+        </Card>
       )}
       
       <VoiceAssistant 

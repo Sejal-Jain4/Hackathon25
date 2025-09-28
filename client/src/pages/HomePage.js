@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import Header from '../components/layout/Header';
+import { Card, SmallCard, AchievementCard } from '../components/ui';
 import { 
   getCompleteUserData, 
   addIncome, 
@@ -113,12 +114,7 @@ const HomePage = () => {
   const renderEmptyDashboard = () => (
     <>
       {/* Monthly Balance Card */}
-      <motion.div 
-        className="bg-dark-800 rounded-xl shadow-xl p-6 mb-6 border border-dark-700"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
+      <Card className="mb-6">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold text-white mb-2">Monthly Balance</h2>
@@ -131,24 +127,19 @@ const HomePage = () => {
         </div>
         
         <div className="mt-4 grid grid-cols-2 gap-4">
-          <div className="bg-dark-700 rounded-lg p-3">
+          <SmallCard>
             <p className="text-gray-400 text-sm">Income</p>
             <div className="bg-dark-600 h-7 w-24 rounded animate-pulse"></div>
-          </div>
-          <div className="bg-dark-700 rounded-lg p-3">
+          </SmallCard>
+          <SmallCard>
             <p className="text-gray-400 text-sm">Expenses</p>
             <div className="bg-dark-600 h-7 w-24 rounded animate-pulse"></div>
-          </div>
+          </SmallCard>
         </div>
-      </motion.div>
+      </Card>
       
       {/* Savings Goals Card - Moved Up */}
-      <motion.div 
-        className="bg-dark-800 rounded-xl shadow-xl p-6 mb-6 border border-dark-700"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-      >
+      <Card className="mb-6" delay={0.1}>
         <h2 className="text-xl font-bold text-white mb-4">Savings Goals</h2>
         <div className="space-y-6">
           {/* Multiple empty goal placeholders */}
@@ -167,15 +158,10 @@ const HomePage = () => {
             </div>
           ))}
         </div>
-      </motion.div>
+      </Card>
       
       {/* Recent Activity Card - Moved to Bottom */}
-      <motion.div 
-        className="bg-dark-800 rounded-xl shadow-xl p-6 mb-6 border border-dark-700"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
+      <Card className="mb-6" delay={0.2}>
         <h2 className="text-xl font-bold text-white mb-4">Recent Activity</h2>
         <div className="space-y-4">
           {[...Array(3)].map((_, index) => (
@@ -195,7 +181,7 @@ const HomePage = () => {
             <div className="bg-dark-700 h-5 w-16 rounded animate-pulse"></div>
           </div>
         </div>
-      </motion.div>
+      </Card>
 
     </>
   );
@@ -215,12 +201,7 @@ const HomePage = () => {
     
     return (
     <>
-      <motion.div 
-        className="bg-dark-800 rounded-xl shadow-xl p-6 mb-6 border border-dark-700"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
+      <Card className="mb-6">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold text-white mb-2">Monthly Balance</h2>
@@ -237,33 +218,28 @@ const HomePage = () => {
         </div>
         
         <div className="mt-4 grid grid-cols-2 gap-4">
-          <div className="bg-dark-700 rounded-lg p-3">
+          <SmallCard>
             <p className="text-gray-400 text-sm">Income</p>
             <p className="text-xl font-semibold text-primary-400">
               ${finances.income.amount}
               <span className="text-xs text-gray-500 ml-1">/{finances.income.frequency}</span>
             </p>
-          </div>
-          <div className="bg-dark-700 rounded-lg p-3">
+          </SmallCard>
+          <SmallCard>
             <p className="text-gray-400 text-sm">Expenses</p>
             <p className="text-xl font-semibold text-secondary-400">
               ${finances.expenses.reduce((sum, expense) => sum + expense.amount, 0)}
               <span className="text-xs text-gray-500 ml-1">/month</span>
             </p>
-          </div>
+          </SmallCard>
         </div>
-      </motion.div>
+      </Card>
       
       {/* Quick Action Buttons */}
       {renderQuickActions()}
       
       {/* Savings Goals Card */}
-      <motion.div 
-        className="bg-dark-800 rounded-xl shadow-xl p-6 mb-6 border border-dark-700"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-      >
+      <Card className="mb-6" delay={0.1}>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold text-white">Savings Goals</h2>
           <button 
@@ -311,15 +287,10 @@ const HomePage = () => {
             </div>
           )}
         </div>
-      </motion.div>
+      </Card>
       
       {/* Recent Activity Card */}
-      <motion.div 
-        className="bg-dark-800 rounded-xl shadow-xl p-6 mb-6 border border-dark-700"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
+      <Card className="mb-6" delay={0.2}>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold text-white">Recent Activity</h2>
           <button 
@@ -367,7 +338,7 @@ const HomePage = () => {
             </div>
           )}
         </div>
-      </motion.div>
+      </Card>
     </>
   );
   };
@@ -376,12 +347,7 @@ const HomePage = () => {
   const renderEmptyTopCards = () => (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
       {/* Monthly Savings Card */}
-      <motion.div 
-        className="bg-dark-800 rounded-xl shadow-xl overflow-hidden border border-dark-700 flex flex-col h-[250px]"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-      >
+      <Card className="overflow-hidden flex flex-col" height={250} delay={0}>
         <div className="p-5 flex flex-col flex-grow">
           <h2 className="text-lg font-bold text-white mb-2">Monthly Savings</h2>
           <div className="flex items-center mb-3">
@@ -431,15 +397,10 @@ const HomePage = () => {
             </div>
           </div>
         </div>
-      </motion.div>
+      </Card>
 
       {/* Next Achievement Card - Now in middle position (swapped with Budget Remaining) */}
-      <motion.div 
-        className="bg-dark-800 rounded-xl shadow-xl overflow-hidden border border-dark-700 flex flex-col h-[250px]"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: 0.1 }}
-      >
+      <Card className="flex flex-col" height={250} delay={0.1}>
         <div className="p-5 flex flex-col flex-grow">
           <h2 className="text-lg font-bold text-white mb-2">Next Achievement</h2>
           <div className="flex items-center space-x-3 mb-3">
@@ -465,15 +426,10 @@ const HomePage = () => {
             <p className="text-xs text-gray-500 text-center mt-2">Upload to unlock achievements</p>
           </div>
         </div>
-      </motion.div>
+      </Card>
       
       {/* Budget Remaining Card - Now in last position (swapped with Achievement) */}
-      <motion.div 
-        className="bg-dark-800 rounded-xl shadow-xl overflow-hidden border border-dark-700 flex flex-col h-[250px]"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: 0.2 }}
-      >
+      <Card className="flex flex-col" height={250} delay={0.2}>
         <div className="p-5 flex flex-col flex-grow">
           <h2 className="text-lg font-bold text-white mb-2">Budget Remaining</h2>
           <div className="flex items-center mb-3">
@@ -501,7 +457,7 @@ const HomePage = () => {
             </div>
           </div>
         </div>
-      </motion.div>
+      </Card>
     </div>
   );
 
@@ -718,13 +674,8 @@ const HomePage = () => {
   // Achievement cards for empty state
   const renderEmptyAchievements = () => (
     <div className="mb-6">
-      <motion.div 
-        className="bg-gradient-to-r from-accent-500 via-secondary-500 to-primary-500 rounded-xl p-0.5 shadow-lg"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <div className="bg-dark-800 rounded-lg p-4">
+      <Card gradientBorder delay={0.1}>
+        <div className="p-4">
           <h2 className="text-2xl font-bold text-white mb-3 flex items-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-accent-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
@@ -735,36 +686,20 @@ const HomePage = () => {
           <div className="overflow-x-auto pb-2">
             <div className="flex space-x-4">
               {[...Array(4)].map((_, index) => (
-                <motion.div
+                <AchievementCard
                   key={index}
-                  className="relative min-w-[200px] w-[200px] h-[200px] bg-dark-700 rounded-lg p-5 border border-dark-600"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: 0.1 * index }}
-                  whileHover={{ 
-                    scale: 0.97,
-                    transition: { duration: 0.2 }
-                  }}
-                >
-                  <div className="w-20 h-20 mb-4 mx-auto bg-gradient-to-br from-dark-600 to-dark-500 rounded-full flex items-center justify-center">
-                    <div className="bg-dark-700 h-10 w-10 rounded-full animate-pulse"></div>
-                  </div>
-                  
-                  <div className="text-center">
-                    <div className="bg-dark-600 h-6 w-32 rounded mx-auto animate-pulse mb-2"></div>
-                    <div className="bg-dark-600 h-4 w-36 rounded mx-auto animate-pulse mt-1"></div>
-                  </div>
-                  
-                  <div className="mt-4 opacity-0">
-                    <div className="w-full bg-dark-600 rounded-full h-2.5 mb-1">
-                    </div>
-                  </div>
-                </motion.div>
+                  loading={true}
+                  name=""
+                  description=""
+                  icon={<div className="bg-dark-700 h-10 w-10 rounded-full animate-pulse"></div>}
+                  color="from-dark-600 to-dark-500"
+                  index={index}
+                />
               ))}
             </div>
           </div>
         </div>
-      </motion.div>
+      </Card>
     </div>
   );
 
@@ -812,13 +747,8 @@ const HomePage = () => {
 
     return (
       <div className="mb-6">
-        <motion.div 
-          className="bg-gradient-to-r from-accent-500 via-secondary-500 to-primary-500 rounded-xl p-0.5 shadow-lg"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className="bg-dark-800 rounded-lg p-4">
+        <Card gradientBorder delay={0.1}>
+          <div className="p-4">
             <h2 className="text-2xl font-bold text-white mb-3 flex items-center">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-accent-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
@@ -830,60 +760,29 @@ const HomePage = () => {
               <div className="flex space-x-4">
                 {achievements.map((achievement, index) => {                  
                   return (
-                    <motion.div
+                    <AchievementCard
                       key={index}
-                      className="relative min-w-[200px] w-[200px] h-[200px] bg-dark-700 rounded-lg p-5 border border-dark-600"
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.3, delay: 0.1 * index }}
-                      whileHover={{ 
-                        scale: 0.97,
-                        transition: { duration: 0.2 }
-                      }}
-                    >
-                      <div className={`w-20 h-20 mb-4 mx-auto bg-gradient-to-br ${achievement.color} rounded-full flex items-center justify-center ${achievement.status !== "completed" && 'opacity-80'} ${achievement.status === "not-started" && 'grayscale'}`}>
-                        <span className="text-4xl">{achievement.icon}</span>
-                      </div>
-                      
-                      <div className="text-center">
-                        <p className="font-medium text-white text-lg">{achievement.name}</p>
-                        <p className="text-sm text-gray-400 mt-1">{achievement.description}</p>
-                      </div>
-                      
-                      {achievement.status === "in-progress" && (
-                        <div className="mt-4">
-                          <div className="w-full bg-dark-600 rounded-full h-2.5">
-                            <div 
-                              className="h-2.5 rounded-full bg-purple-500"
-                              style={{ width: `${achievement.progress}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      )}
-                    </motion.div>
+                      name={achievement.name}
+                      description={achievement.description}
+                      icon={<span className="text-4xl">{achievement.icon}</span>}
+                      color={achievement.color}
+                      status={achievement.status || (achievement.unlocked ? "completed" : "not-started")}
+                      progress={achievement.progress}
+                      index={index}
+                    />
                   );
                 })}
               </div>
             </div>
           </div>
-        </motion.div>
+        </Card>
       </div>
     );
   };
 
   return (
     <div className="pb-16 bg-dark-900 min-h-screen">
-      <div className="bg-dark-800 px-6 py-4 shadow-md border-b border-dark-700">
-        <h1 className="text-2xl font-bold text-white text-left">
-          Welcome to <span 
-            onClick={() => navigate('/')} 
-            className="bg-gradient-to-r from-accent-400 to-primary-400 bg-clip-text text-transparent cursor-pointer hover:opacity-80 transition-opacity"
-          >
-            Centsi
-          </span>
-          {username && <span className="ml-2 text-2xl font-bold text-white">{username}</span>}
-        </h1>
-      </div>
+      <Header title="Welcome" username={username} />
       
       <div className="p-4">
         {/* Top cards section at the top */}

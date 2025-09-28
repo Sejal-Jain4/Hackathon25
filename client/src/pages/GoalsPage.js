@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { getUserProfile } from '../utils/mockDataService';
 import { FaPlus, FaCoins, FaPiggyBank, FaChartLine, FaUpload, FaSpinner } from 'react-icons/fa';
+import Header from '../components/layout/Header';
+import { Card } from '../components/ui';
 
 const GoalsPage = () => {
   const navigate = useNavigate();
@@ -32,12 +34,7 @@ const GoalsPage = () => {
   const renderEmptyGoals = () => (
     <>
       {/* Savings Goals Card - Empty state */}
-      <motion.div 
-        className="bg-dark-800 rounded-xl shadow-xl p-6 mb-6 border border-dark-700"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
+      <Card className="p-6 mb-6">
         <div className="flex items-center mb-6">
           <FaPiggyBank className="h-6 w-6 text-gray-600 mr-3" />
           <h2 className="text-xl font-bold text-white">Savings Goals</h2>
@@ -60,15 +57,10 @@ const GoalsPage = () => {
             </div>
           ))}
         </div>
-      </motion.div>
+      </Card>
       
       {/* Budget Limits Card - Empty state */}
-      <motion.div 
-        className="bg-dark-800 rounded-xl shadow-xl p-6 mb-6 border border-dark-700"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-      >
+      <Card className="p-6 mb-6" delay={0.1}>
         <div className="flex items-center mb-6">
           <FaChartLine className="h-6 w-6 text-gray-600 mr-3" />
           <h2 className="text-xl font-bold text-white">Budget Limits</h2>
@@ -87,7 +79,7 @@ const GoalsPage = () => {
             </div>
           ))}
         </div>
-      </motion.div>
+      </Card>
     </>
   );
 
@@ -142,12 +134,7 @@ const GoalsPage = () => {
     return (
       <>
         {/* Savings Goals Section */}
-        <motion.div 
-          className="bg-dark-800 rounded-xl shadow-xl p-6 mb-6 border border-dark-700"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
+        <Card className="p-6 mb-6">
           <div className="flex justify-between items-center mb-6">
             <div className="flex items-center">
               <FaPiggyBank className="h-6 w-6 text-accent-400 mr-3" />
@@ -166,12 +153,10 @@ const GoalsPage = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {savingsGoals.map((goal, index) => (
-              <motion.div 
+              <Card 
                 key={index} 
-                className="bg-dark-700 rounded-lg p-5 border border-dark-600 hover:border-accent-500 transition-colors duration-300"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.1 * index }}
+                className="bg-dark-700 p-5 hover:border-accent-500"
+                delay={0.1 * index}
               >
                 <div className="flex justify-between items-center mb-2">
                   <div>
@@ -226,18 +211,13 @@ const GoalsPage = () => {
                 >
                   <FaCoins className="mr-2" /> Add Funds
                 </motion.button>
-              </motion.div>
+              </Card>
             ))}
           </div>
-        </motion.div>
+        </Card>
         
         {/* Budget Limits Section */}
-        <motion.div 
-          className="bg-dark-800 rounded-xl shadow-xl p-6 mb-6 border border-dark-700"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-        >
+        <Card className="p-6 mb-6" delay={0.2}>
           <div className="flex items-center mb-6">
             <FaChartLine className="h-6 w-6 text-secondary-400 mr-3" />
             <h2 className="text-xl font-bold bg-gradient-to-r from-secondary-400 to-primary-400 bg-clip-text text-transparent">
@@ -247,12 +227,10 @@ const GoalsPage = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {budgetLimits.map((budget, index) => (
-              <motion.div 
+              <Card 
                 key={index}
-                className="bg-dark-700 rounded-lg p-5 border border-dark-600"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.2 + (0.1 * index) }}
+                className="bg-dark-700 p-5"
+                delay={0.2 + (0.1 * index)}
               >
                 <div className="flex justify-between items-center mb-3">
                   <h3 className="font-bold text-white text-lg">{budget.category}</h3>
@@ -280,19 +258,17 @@ const GoalsPage = () => {
                     transition={{ duration: 1, delay: 0.5 + (index * 0.2) }}
                   ></motion.div>
                 </div>
-              </motion.div>
+              </Card>
             ))}
           </div>
-        </motion.div>
+        </Card>
       </>
     );
   };
   
   return (
     <div className="pb-16 bg-dark-900 min-h-screen">
-      <div className="bg-dark-800 px-6 py-4 shadow-md border-b border-dark-700">
-        <h1 className="text-2xl font-bold text-white">My Goals</h1>
-      </div>
+      <Header title="My Goals" />
       
       <div className="p-4">
         {/* Conditionally render empty or loaded content */}
