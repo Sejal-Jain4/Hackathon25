@@ -73,6 +73,10 @@
   color: #ffffff;
 }
 
+.amount-input {
+  text-indent: 10px !important; /* Force additional space after the $ sign */
+}
+
 .form-group.checkbox {
   display: flex;
   align-items: center;
@@ -90,16 +94,34 @@
   position: relative;
   display: flex;
   align-items: center;
+  background-color: #2d2d3d;
+  border: 1px solid #3d3d4d;
+  border-radius: 4px;
+  overflow: hidden;
 }
 
 .currency-symbol {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  color: #888;
+  font-size: 16px;
+  background-color: #252535;
+  border-right: 1px solid #3d3d4d;
+  height: 100%;
+  min-width: 30px;
   position: absolute;
-  left: 10px;
-  color: #555;
 }
 
 .input-wrapper input {
-  padding-left: 25px;
+  padding-left: 40px !important; /* Make sure there's plenty of space after the $ sign */
+  border: none !important;
+  background-color: transparent;
+  width: 100%;
+  text-align: left;
+  font-size: 16px;
+  height: 42px;
 }
 
 .error-message {
@@ -110,6 +132,14 @@
 
 input.error,
 select.error {
+  border-color: #d32f2f;
+}
+
+.input-wrapper input.error {
+  border: none !important;
+}
+
+.input-wrapper:has(input.error) {
   border-color: #d32f2f;
 }
 

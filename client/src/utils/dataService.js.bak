@@ -13,9 +13,7 @@ const STORAGE_KEYS = {
   AUTH: 'centsi_auth',
   QUESTIONNAIRE: 'centsi_questionnaire_responses',
   FINANCIAL_DATA: 'centsi_financial_data',
-  ACHIEVEMENTS: 'centsi_achievements',
-  DATA_LOADED: 'centsi_data_loaded',
-  DATA_UPLOADED: 'centsi_data_uploaded'
+  ACHIEVEMENTS: 'centsi_achievements'
 };
 
 /**
@@ -217,13 +215,8 @@ export const addSavingsGoal = (goalData) => {
   // Add to savings goals array
   financialData.savingsGoals.push(goalData);
   
-  // Check for multiple savings goals achievement - use the new length for accurate tracking
-  const goalsCount = financialData.savingsGoals.length;
-  const result = updateAchievementProgress('savings_goals_creator', { 
-    newSavingsGoal: true,
-    // Don't override the count, let the incremental counting work 
-    // since we're adding one goal at a time here
-  });
+  // Check for multiple savings goals achievement
+  const result = updateAchievementProgress('savings_goals_creator', { newSavingsGoal: true });
   
   // Check savings milestone achievement
   const totalSaved = financialData.savingsGoals.reduce((sum, goal) => sum + goal.current, 0);
@@ -288,9 +281,6 @@ export const removeSavingsGoal = (index) => {
   if (index >= 0 && index < financialData.savingsGoals.length) {
     financialData.savingsGoals.splice(index, 1);
   }
-  
-  // Important: We're not updating achievements here to avoid reverting completed achievements
-  // The achievement for multiple savings goals will stay completed even if goals are deleted
   
   return saveFinancialData(financialData);
 };
@@ -364,23 +354,6 @@ export const isAuthenticated = () => {
 };
 
 /**
- * Clear data load state - use this when user logs out or when 
- * explicitly resetting the app state to simulate a new user flow
- */
-export const clearDataLoadState = () => {
-  localStorage.removeItem(STORAGE_KEYS.DATA_LOADED);
-  localStorage.removeItem(STORAGE_KEYS.DATA_UPLOADED);
-  return true;
-};
-
-/**
- * Check if data has been loaded by the user explicitly clicking "Upload Data"
- */
-export const isDataLoaded = () => {
-  return localStorage.getItem(STORAGE_KEYS.DATA_LOADED) === 'true';
-};
-
-/**
  * Define the structure of demo achievements
  */
 export const DEMO_ACHIEVEMENTS = [
@@ -401,7 +374,7 @@ export const DEMO_ACHIEVEMENTS = [
     id: 'financial_learner',
     name: 'Financial Scholar',
     description: 'Complete one learning activity',
-    icon: '📚', // Book icon that matches the learn page theme
+    icon: '�',
     color: 'from-blue-500 to-indigo-700',
     status: 'not-started',
     progress: 0,
@@ -412,7 +385,7 @@ export const DEMO_ACHIEVEMENTS = [
     id: 'voice_assistant_user',
     name: 'Voice Explorer',
     description: 'Interact with the AI voice assistant',
-    icon: '🎤', // Microphone icon that matches the AI coach theme
+    icon: '�️',
     color: 'from-purple-500 to-violet-700',
     status: 'not-started',
     progress: 0,
@@ -436,23 +409,15 @@ export const DEMO_ACHIEVEMENTS = [
 
 /**
  * Get achievements from localStorage or initialize with defaults
- * When resetIfNew is true, will check for new login status and reset if needed
  */
 export const getAchievements = () => {
   const storedAchievements = localStorage.getItem(STORAGE_KEYS.ACHIEVEMENTS);
-  
-  // If we have stored achievements, use them
   if (storedAchievements) {
     return JSON.parse(storedAchievements);
   }
   
-  // Otherwise initialize with default achievements
-  const defaultAchievements = [...DEMO_ACHIEVEMENTS];
-  
-  // Save these default achievements to localStorage
-  saveAchievements(defaultAchievements);
-  
-  return defaultAchievements;
+  // Initialize with default achievements
+  return DEMO_ACHIEVEMENTS;
 };
 
 /**
@@ -482,20 +447,9 @@ export const updateAchievementProgress = (achievementId, progressData = {}) => {
   // Update achievement based on its criteria
   switch (achievement.criteria) {
     case 'multipleSavingsGoals':
-      // If the achievement is already completed, don't change its status
-      if (achievement.status === 'completed') {
-        // Keep it completed regardless of current goal count
-        break;
-      }
-      
       if (progressData.newSavingsGoal) {
-        // If setCurrentGoals is provided, use it directly; otherwise increment
-        if (progressData.setCurrentGoals !== undefined) {
-          achievement.currentGoals = progressData.setCurrentGoals;
-        } else {
-          // Increment count of savings goals
-          achievement.currentGoals = achievement.currentGoals ? achievement.currentGoals + 1 : 1;
-        }
+        // Increment count of savings goals
+        achievement.currentGoals = achievement.currentGoals ? achievement.currentGoals + 1 : 1;
         
         // Calculate progress percentage
         achievement.progress = Math.min(
@@ -509,8 +463,6 @@ export const updateAchievementProgress = (achievementId, progressData = {}) => {
         } else if (achievement.progress > 0) {
           achievement.status = 'in-progress';
         }
-        
-        console.log(`Goal progress: ${achievement.currentGoals}/${achievement.requiredGoals}`);
       }
       break;
     
@@ -529,12 +481,6 @@ export const updateAchievementProgress = (achievementId, progressData = {}) => {
       break;
     
     case 'savingsAmount':
-      // If the savings amount achievement is already completed, don't change its status
-      if (achievement.status === 'completed') {
-        // Keep it completed regardless of current savings amount
-        break;
-      }
-      
       if (progressData.savingsAmount !== undefined) {
         // Update current amount saved
         achievement.currentAmount = progressData.savingsAmount;
@@ -621,15 +567,12 @@ export const checkAchievementsProgress = () => {
     // Get the current number of savings goals
     const savingsGoalsCount = financialData.savingsGoals.length;
     
-    // First check if the achievement is already completed
-    const achievements = getAchievements();
-    const goalSetterAchievement = achievements.find(a => a.id === 'savings_goals_creator');
-    
-    // Only update if not already completed and we have goals
-    if (savingsGoalsCount > 0 && (!goalSetterAchievement || goalSetterAchievement.status !== 'completed')) {
+    // Update the achievement with the current count
+    // This will set the correct progress even if the goals were added in a previous session
+    if (savingsGoalsCount > 0) {
       const result = updateAchievementProgress('savings_goals_creator', { 
         newSavingsGoal: true,
-        setCurrentGoals: savingsGoalsCount // Use setCurrentGoals to explicitly set the count
+        currentGoals: savingsGoalsCount 
       });
       if (result.newlyCompleted) newlyCompletedAchievements.push(result.newlyCompleted);
     }
@@ -637,19 +580,12 @@ export const checkAchievementsProgress = () => {
   
   // Check for Savings Milestone achievement
   if (financialData.savingsGoals) {
-    // First check if the achievement is already completed
-    const achievements = getAchievements();
-    const savingsMilestoneAchievement = achievements.find(a => a.id === 'savings_milestone');
+    // Calculate total amount saved across all goals
+    const totalSaved = financialData.savingsGoals.reduce((sum, goal) => sum + goal.current, 0);
     
-    // Only update if not already completed
-    if (!savingsMilestoneAchievement || savingsMilestoneAchievement.status !== 'completed') {
-      // Calculate total amount saved across all goals
-      const totalSaved = financialData.savingsGoals.reduce((sum, goal) => sum + goal.current, 0);
-      
-      if (totalSaved > 0) {
-        const result = updateAchievementProgress('savings_milestone', { savingsAmount: totalSaved });
-        if (result.newlyCompleted) newlyCompletedAchievements.push(result.newlyCompleted);
-      }
+    if (totalSaved > 0) {
+      const result = updateAchievementProgress('savings_milestone', { savingsAmount: totalSaved });
+      if (result.newlyCompleted) newlyCompletedAchievements.push(result.newlyCompleted);
     }
   }
   
@@ -682,14 +618,6 @@ export const recordVoiceAssistantUsage = () => {
  * @returns {Object|null} - The achievement if newly completed, null otherwise
  */
 export const recordLearningCompleted = () => {
-  // Get current count of completed learning activities
-  const learningCount = parseInt(localStorage.getItem('centsi_learning_completed_count') || '0');
-  
-  // Increment and store the count
-  const newCount = learningCount + 1;
-  localStorage.setItem('centsi_learning_completed_count', newCount.toString());
-  
-  // Update achievement progress
   const result = updateAchievementProgress('financial_learner', { completedLearning: true });
   return result.newlyCompleted;
 };

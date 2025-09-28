@@ -1,26 +1,33 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import Header from '../components/layout/Header';
-import { Card, SmallCard, AchievementCard } from '../components/ui';
+import { 
+  Card, 
+  SmallCard, 
+  AchievementCard,
+  AchievementCelebration,
+  SavingsGoalCelebration
+} from '../components/ui';
 import { 
   getCompleteUserData, 
-  addIncome, 
-  addExpense, 
+  saveFinancialData,
+  getUsername,
+  getAchievements,
+  recordSectionExplored,
+  checkAchievementsProgress,
+  addIncome,
+  addExpense,
   addSavingsGoal,
-  updateExpense,
-  removeExpense,
   updateSavingsGoal,
-  removeSavingsGoal,
-  getUsername
+  isDataLoaded,
+  clearDataLoadState
 } from '../utils/dataService';
 import { 
   FaUpload, 
   FaSpinner, 
-  FaChartLine, 
-  FaMoneyBillWave, 
-  FaRobot, 
   FaCommentDots, 
+  FaMoneyBillWave, 
   FaPlus
 } from 'react-icons/fa';
 import { BsDash } from 'react-icons/bs';
@@ -30,6 +37,7 @@ import ChatbotModal from '../components/chatbot/ChatbotModal';
 import FinancialEntryForm from '../components/FinancialEntryForm';
 import '../components/chatbot/ChatDot.css';
 import '../styles/FinancialEntry.css';
+import '../styles/FloatingMenu.css';
 
 const HomePage = () => {
   const navigate = useNavigate();
@@ -37,80 +45,105 @@ const HomePage = () => {
   const [username, setUsername] = useState('');
   const [dataLoaded, setDataLoaded] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [completedAchievement, setCompletedAchievement] = useState(null);
   const [showWelcomePopup, setShowWelcomePopup] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
   const [questionnaire, setQuestionnaire] = useState(null);
-  const [activeForm, setActiveForm] = useState(null);  // Can be string ('income', 'expense', 'savings') or object ({type: 'expense', index: 0})
+  const [activeForm, setActiveForm] = useState(null);
+  const [menuExpanded, setMenuExpanded] = useState(false);
+  const [completedGoal, setCompletedGoal] = useState(null); // Track goals that hit 100%
+  const menuRef = useRef(null);  // Can be string ('income', 'expense', 'savings') or object ({type: 'expense', index: 0})
 
   // Load user data on component mount
   useEffect(() => {
-    // Get user data from enhanced data service
+    // Always get user data from enhanced data service for questionnaire and profile info
     const data = getCompleteUserData();
     setUserData(data);
     
     // Use getUsername to get the username directly from localStorage
     setUsername(getUsername());
     
-    // Set data loaded if we have financial data
-    if (data.finances) {
-      setDataLoaded(true);
-    }
+    // Check if data has been loaded before (from localStorage)
+    // This allows data to persist when navigating between tabs
+    // ONLY if the user has explicitly clicked "Upload Data" button
+    const dataLoaded = isDataLoaded();
+    setDataLoaded(dataLoaded);
     
-    // Get questionnaire responses
+    // Check for questionnaire responses (needed for the welcome popup)
     if (data.questionnaire) {
       setQuestionnaire(data.questionnaire);
-      
-      // Check if welcome popup has been shown in this session
-      const hasShownWelcome = sessionStorage.getItem('centsi_welcome_shown');
-      
-      if (!hasShownWelcome) {
-        // Show welcome popup with a small delay only if not shown before
-        setTimeout(() => {
-          setShowWelcomePopup(true);
-          // Mark as shown for this session
-          sessionStorage.setItem('centsi_welcome_shown', 'true');
-        }, 1500);
+      // Show welcome popup if this is the first time after completing questionnaire
+      if (localStorage.getItem('centsi_welcome_shown') !== 'true') {
+        setShowWelcomePopup(true);
+        
+        // If coming from login/questionnaire, ensure data is not pre-loaded
+        clearDataLoadState();
       }
     }
+    
+    // Only check achievements if data has been loaded by user clicking upload
+    if (dataLoaded) {
+      checkAchievementsProgress();
+    }
+    
+    // Add event listener to close menu when clicking outside
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuExpanded(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    
+    // Clean up
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
   
   // Handle form submissions for financial entries
   const handleFormSubmit = (formData) => {
     let updatedData;
+    let newlyCompleted = null;
     
     // Check if activeForm is an object with type and index (for editing)
     if (activeForm && typeof activeForm === 'object') {
       const { type, index } = activeForm;
       
-      switch(type) {
-        case 'expense':
-          updatedData = updateExpense(index, formData);
-          break;
-          
-        case 'savings':
-          updatedData = updateSavingsGoal(index, formData);
-          break;
-          
-        default:
-          console.error('Unknown form type for editing:', type);
+      if (type === 'expense') {
+        updatedData = saveFinancialData({
+          ...userData.finances,
+          expenses: userData.finances.expenses.map((expense, i) => 
+            i === index ? formData : expense
+          )
+        });
+      } else if (type === 'savings') {
+        // Use updateSavingsGoal to handle achievement checking
+        const result = updateSavingsGoal(index, formData);
+        updatedData = result.financialData;
+        newlyCompleted = result.newlyCompleted;
       }
     } else {
-      // Handle adding new entries
+      // Handle new entries with achievement checks
       switch(activeForm) {
-        case 'income':
-          updatedData = addIncome(formData);
+        case 'income': {
+          const result = addIncome(formData);
+          updatedData = result.financialData;
+          newlyCompleted = result.newlyCompleted;
           break;
-          
-        case 'expense':
-          updatedData = addExpense(formData);
+        }
+        case 'expense': {
+          const result = addExpense(formData);
+          updatedData = result.financialData;
+          newlyCompleted = result.newlyCompleted;
           break;
-          
-        case 'savings':
-          updatedData = addSavingsGoal(formData);
+        }
+        case 'savings': {
+          const result = addSavingsGoal(formData);
+          updatedData = result.financialData;
+          newlyCompleted = result.newlyCompleted;
           break;
-          
-        default:
-          console.error('Unknown form type:', activeForm);
+        }
       }
     }
     
@@ -120,6 +153,11 @@ const HomePage = () => {
         ...userData,
         finances: updatedData
       });
+      
+      // Check if an achievement was newly completed
+      if (newlyCompleted) {
+        setCompletedAchievement(newlyCompleted);
+      }
     }
     
     // Close the form
@@ -132,93 +170,49 @@ const HomePage = () => {
     
     // Simulate API delay
     setTimeout(() => {
-      // We're already using the enhanced data service now
-      const data = getCompleteUserData();
-      setUserData(data);
       setDataLoaded(true);
       setUploading(false);
+      
+      // Store both flags in localStorage to persist across navigation
+      // Using consistent constants from dataService
+      localStorage.setItem('centsi_data_uploaded', 'true');
+      localStorage.setItem('centsi_data_loaded', 'true');
+      
+      // Update the data in context/state
+      const data = getCompleteUserData();
+      setUserData(data);
+      
+      // Check for achievement progress after data is loaded
+      const result = checkAchievementsProgress();
+      
+      // If any achievements were newly completed, show notification
+      if (result.newlyCompletedAchievements.length > 0) {
+        // Show the first completed achievement
+        setCompletedAchievement(result.newlyCompletedAchievements[0]);
+        
+        // If there are more, queue them up to show after the first one closes
+        if (result.newlyCompletedAchievements.length > 1) {
+          setTimeout(() => {
+            setCompletedAchievement(result.newlyCompletedAchievements[1]);
+          }, 6000); // Show second achievement after 6 seconds
+        }
+      }
     }, 1500); // 1.5 second simulated loading time
   };
   
-  // Dashboard with empty placeholders
-  const renderEmptyDashboard = () => (
-    <>
-      {/* Monthly Balance Card */}
-      <Card className="mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-white mb-2">Monthly Balance</h2>
-            <div className="bg-dark-700 h-8 w-40 rounded animate-pulse"></div>
-            <p className="text-sm text-gray-500 mt-1">Upload to view data</p>
-          </div>
-          <div className="bg-dark-700 rounded-full p-3">
-            <FaMoneyBillWave className="h-8 w-8 text-gray-600" />
-          </div>
-        </div>
-        
-        <div className="mt-4 grid grid-cols-2 gap-4">
-          <SmallCard>
-            <p className="text-gray-400 text-sm">Income</p>
-            <div className="bg-dark-600 h-7 w-24 rounded animate-pulse"></div>
-          </SmallCard>
-          <SmallCard>
-            <p className="text-gray-400 text-sm">Expenses</p>
-            <div className="bg-dark-600 h-7 w-24 rounded animate-pulse"></div>
-          </SmallCard>
-        </div>
-      </Card>
-      
-      {/* Savings Goals Card - Moved Up */}
-      <Card className="mb-6" delay={0.1}>
-        <h2 className="text-xl font-bold text-white mb-4">Savings Goals</h2>
-        <div className="space-y-6">
-          {/* Multiple empty goal placeholders */}
-          {[...Array(3)].map((_, index) => (
-            <div key={index} className="space-y-2">
-              <div className="flex justify-between items-center mb-2">
-                <div>
-                  <div className="bg-dark-700 h-5 w-32 rounded animate-pulse mb-1"></div>
-                  <div className="bg-dark-700 h-3 w-24 rounded animate-pulse"></div>
-                </div>
-                <div className="bg-dark-700 h-5 w-24 rounded animate-pulse"></div>
-              </div>
-              <div className="w-full bg-dark-600 rounded-full h-3">
-                <div className="bg-dark-700 h-3 rounded-full w-0"></div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
-      
-      {/* Recent Activity Card - Moved to Bottom */}
-      <Card className="mb-6" delay={0.2}>
-        <h2 className="text-xl font-bold text-white mb-4">Recent Activity</h2>
-        <div className="space-y-4">
-          {[...Array(3)].map((_, index) => (
-            <div key={index} className="flex justify-between items-center border-b border-dark-600 pb-3">
-              <div>
-                <div className="bg-dark-700 h-5 w-32 rounded animate-pulse mb-1"></div>
-                <div className="bg-dark-700 h-3 w-24 rounded animate-pulse"></div>
-              </div>
-              <div className="bg-dark-700 h-5 w-16 rounded animate-pulse"></div>
-            </div>
-          ))}
-          <div className="flex justify-between items-center">
-            <div>
-              <div className="bg-dark-700 h-5 w-32 rounded animate-pulse mb-1"></div>
-              <div className="bg-dark-700 h-3 w-24 rounded animate-pulse"></div>
-            </div>
-            <div className="bg-dark-700 h-5 w-16 rounded animate-pulse"></div>
-          </div>
-        </div>
-      </Card>
-
-    </>
-  );
-
-  // Dashboard with real data
-  const renderLoadedDashboard = () => {
-    const finances = userData.finances;
+  // Dashboard with placeholder content (same layout as loaded state but with placeholders)
+  const renderPlaceholderDashboard = () => {
+    // Create placeholder data structure similar to loaded state
+    const placeholderFinances = {
+      totalBalance: 0,
+      income: {
+        amount: 0,
+        frequency: "monthly",
+        source: "Not specified"
+      },
+      expenses: [],
+      savingsGoals: []
+    };
     
     return (
     <>
@@ -230,7 +224,136 @@ const HomePage = () => {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-3xl font-bold bg-gradient-to-r from-accent-400 to-primary-400 bg-clip-text text-transparent">
-              ${finances.totalBalance.toFixed(2)}
+              $0.00
+            </p>
+            <p className="text-sm text-gray-500 mt-1">Upload to view data</p>
+          </div>
+          <div className="bg-dark-700 rounded-full p-3">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-accent-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+        </div>
+        
+        <div className="mt-4">
+          <Card className="mb-3">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-gray-400 text-sm">Income</p>
+                <p className="text-xl font-semibold text-primary-400">
+                  $0.00
+                  <span className="text-xs text-gray-500 ml-1">/monthly</span>
+                </p>
+                <p className="text-xs text-gray-500">Source: Not specified</p>
+              </div>
+              <button 
+                disabled={!dataLoaded}
+                className="bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-lg px-3 py-1 text-sm transition-colors flex items-center shadow-md opacity-50 cursor-not-allowed"
+              >
+                <FaPlus className="mr-1" size={10} /> Adjust
+              </button>
+            </div>
+          </Card>
+          
+          <Card>
+            <div className="flex justify-between items-center mb-3">
+              <div>
+                <p className="text-gray-400 text-sm">Expenses</p>
+                <p className="text-xl font-semibold text-secondary-400">
+                  $0.00
+                  <span className="text-xs text-gray-500 ml-1">/month</span>
+                </p>
+                <p className="text-xs text-gray-500">0 expense categories</p>
+              </div>
+              <button 
+                disabled={!dataLoaded}
+                className="bg-gradient-to-r from-secondary-500 to-secondary-600 hover:from-secondary-600 hover:to-secondary-700 text-white rounded-lg px-3 py-1 text-sm transition-colors flex items-center shadow-md opacity-50 cursor-not-allowed"
+              >
+                <FaPlus className="mr-1" size={10} /> Add
+              </button>
+            </div>
+            
+            <div className="text-center py-4">
+              <p className="text-gray-400">No expenses recorded yet</p>
+              <button 
+                disabled={!dataLoaded}
+                className="mt-2 px-4 py-2 bg-gradient-to-r from-secondary-500 to-secondary-600 hover:from-secondary-600 hover:to-secondary-700 text-white rounded-lg shadow-md transition-colors opacity-50 cursor-not-allowed"
+              >
+                Add an expense
+              </button>
+            </div>
+          </Card>
+        </div>
+      </Card>
+      
+      {/* Savings Goals Card */}
+      <Card className="mb-6" delay={0.1}>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-white">Savings Goals</h2>
+          <button 
+            disabled={!dataLoaded}
+            className="bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-white rounded-full p-2 transition-colors shadow-md opacity-50 cursor-not-allowed"
+          >
+            <FaPlus />
+          </button>
+        </div>
+        
+        <div className="space-y-6">
+          <div className="text-center py-4">
+            <p className="text-gray-400">No savings goals yet</p>
+            <button 
+              disabled={!dataLoaded}
+              className="mt-2 px-4 py-2 bg-gradient-to-r from-accent-500 to-primary-500 hover:from-accent-600 hover:to-primary-600 text-white rounded-lg shadow-md transition-colors opacity-50 cursor-not-allowed"
+            >
+              Add a goal
+            </button>
+          </div>
+        </div>
+      </Card>
+      
+      {/* Recent Activity Card */}
+      <Card className="mb-6" delay={0.2}>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-white">Recent Activity</h2>
+          <button 
+            disabled={!dataLoaded}
+            className="bg-dark-700 hover:bg-dark-600 text-white rounded-full p-2 transition-colors opacity-50 cursor-not-allowed"
+          >
+            <FaPlus />
+          </button>
+        </div>
+        
+        <div className="space-y-4">
+          <div className="text-center py-4">
+            <p className="text-gray-400">No activities recorded yet</p>
+            <p className="text-xs text-gray-500 mt-2">Upload data to view your financial activity</p>
+          </div>
+        </div>
+      </Card>
+    </>
+    );
+  };
+
+  // Dashboard with real data
+  const renderLoadedDashboard = () => {
+    const finances = userData.finances;
+    
+    // Mark the dashboard sections as explored for the Financial Explorer achievement
+    recordSectionExplored('income');
+    recordSectionExplored('expenses');
+    recordSectionExplored('savings');
+    
+    return (
+    <>
+      <Card className="mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-white">Monthly Balance</h2>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-3xl font-bold bg-gradient-to-r from-accent-400 to-primary-400 bg-clip-text text-transparent">
+              ${(finances.income.amount - finances.expenses.reduce((sum, expense) => sum + expense.amount, 0) - finances.savingsGoals.reduce((sum, goal) => sum + goal.current, 0)).toFixed(2)}
             </p>
             <p className="text-sm text-gray-500 mt-1">Last updated today</p>
           </div>
@@ -300,10 +423,14 @@ const HomePage = () => {
                       </button>
                       <button 
                         onClick={() => {
-                          const updatedData = removeExpense(index);
+                          const updatedData = {
+                            ...userData.finances,
+                            expenses: userData.finances.expenses.filter((_, i) => i !== index)
+                          };
+                          const savedData = saveFinancialData(updatedData);
                           setUserData({
                             ...userData,
-                            finances: updatedData
+                            finances: savedData
                           });
                         }}
                         className="bg-gradient-to-r from-secondary-700 to-secondary-800 hover:from-secondary-800 hover:to-secondary-900 text-white rounded px-2 py-1 text-xs transition-colors shadow-sm"
@@ -313,6 +440,18 @@ const HomePage = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+            
+            {finances.expenses.length === 0 && (
+              <div className="text-center py-4">
+                <p className="text-gray-400">No expenses recorded yet</p>
+                <button 
+                  onClick={() => setActiveForm('expense')}
+                  className="mt-2 px-4 py-2 bg-gradient-to-r from-secondary-500 to-secondary-600 hover:from-secondary-600 hover:to-secondary-700 text-white rounded-lg shadow-md transition-colors"
+                >
+                  Add an expense
+                </button>
               </div>
             )}
           </Card>
@@ -332,37 +471,68 @@ const HomePage = () => {
         </div>
         
         <div className="space-y-6">
-          {finances.savingsGoals.map((goal, index) => (
-            <div key={index} className="space-y-2">
-              <div className="flex justify-between items-center mb-1">
-                <div>
-                  <p className="font-medium text-white">{goal.name}</p>
-                  <p className="text-xs text-gray-500">
-                    {goal.deadline ? `Target date: ${new Date(goal.deadline).toLocaleDateString()}` : 'Ongoing goal'}
-                  </p>
+          {finances.savingsGoals.map((goal, index) => {
+            // Calculate progress percentage
+            const progressPercentage = Math.min(100, (goal.current / goal.target) * 100);
+            const isComplete = progressPercentage >= 100;
+            
+            return (
+              <div key={index} className="space-y-2">
+                <div className="flex justify-between items-center mb-1">
+                  <div>
+                    <p className="font-medium text-white">{goal.name}</p>
+                    <p className="text-xs text-gray-500">
+                      {goal.deadline ? `Target date: ${new Date(goal.deadline).toLocaleDateString()}` : 'Ongoing goal'}
+                    </p>
+                  </div>
+                  <div className="flex items-center">
+                    <p className="text-accent-400 font-medium mr-3">
+                      ${goal.current}/${goal.target} {isComplete && '✓'}
+                    </p>
+                    <button 
+                      onClick={() => setActiveForm({ type: 'savings', index: index })}
+                      className="bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-white rounded-lg px-3 py-1 text-sm transition-colors shadow-sm mr-1"
+                    >
+                      Edit
+                    </button>
+                    <button 
+                      onClick={() => {
+                        const updatedData = {
+                          ...userData.finances,
+                          savingsGoals: userData.finances.savingsGoals.filter((_, i) => i !== index)
+                        };
+                        const savedData = saveFinancialData(updatedData);
+                        setUserData({
+                          ...userData,
+                          finances: savedData
+                        });
+                      }}
+                      className="bg-gradient-to-r from-accent-700 to-accent-800 hover:from-accent-800 hover:to-accent-900 text-white rounded px-2 py-1 text-xs transition-colors shadow-sm"
+                    >
+                      <BsDash size={12} />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center">
-                  <p className="text-accent-400 font-medium mr-3">
-                    ${goal.current}/${goal.target}
-                  </p>
-                  <button 
-                    onClick={() => setActiveForm({ type: 'savings', index: index })}
-                    className="bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-white rounded-lg px-3 py-1 text-sm transition-colors shadow-sm"
-                  >
-                    Edit
-                  </button>
+                <div className="w-full bg-dark-600 rounded-full h-3 relative">
+                  {/* Progress bar animation */}
+                  <motion.div 
+                    className={`bg-gradient-to-r ${isComplete ? 'from-green-500 to-accent-500' : 'from-accent-500 to-primary-500'} h-3 rounded-full`}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progressPercentage}%` }}
+                    transition={{ duration: 1, delay: 0.5 + (index * 0.2) }}
+                    onAnimationComplete={() => {
+                      // Check if goal just hit 100% (completed)
+                      // This will trigger only once when the animation finishes at 100%
+                      if (isComplete && goal.current === goal.target) {
+                        // Set the completed goal to trigger celebration
+                        setCompletedGoal(goal);
+                      }
+                    }}
+                  />
                 </div>
               </div>
-              <div className="w-full bg-dark-600 rounded-full h-3">
-                <motion.div 
-                  className="bg-gradient-to-r from-accent-500 to-primary-500 h-3 rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(goal.current / goal.target) * 100}%` }}
-                  transition={{ duration: 1, delay: 0.5 + (index * 0.2) }}
-                ></motion.div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
           
           {finances.savingsGoals.length === 0 && (
             <div className="text-center py-4">
@@ -432,180 +602,8 @@ const HomePage = () => {
   );
   };
   
-  // Top stats cards for empty state
-  const renderEmptyTopCards = () => (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
-      {/* Monthly Savings Card */}
-      <Card className="overflow-hidden flex flex-col" height={250} delay={0}>
-        <div className="p-5 flex flex-col flex-grow">
-          <h2 className="text-lg font-bold text-white mb-2">Monthly Savings</h2>
-          <div className="flex items-center mb-3">
-            <div className="bg-dark-700 h-8 w-24 rounded animate-pulse"></div>
-            <div className="text-sm text-gray-500 ml-2">/ target</div>
-            <div className="bg-dark-700 h-4 w-16 rounded animate-pulse ml-2"></div>
-          </div>
-          
-          {/* Custom Piggy Bank Visualization - Empty State with Full Fill */}
-          <div className="w-full flex flex-col items-center justify-center flex-grow">
-            <div className="w-36 h-32 relative">
-              {/* Base white outline of piggy bank for empty state */}
-              <img 
-                src={piggyBank} 
-                alt="Empty Piggy Bank Outline" 
-                className="w-full h-full object-contain opacity-70"
-                style={{ filter: "brightness(0) invert(1) drop-shadow(0 0 2px white)" }}
-              />
-              
-              {/* The mask layer that uses the piggy bank as mask - for empty state */}
-              <div 
-                className="absolute inset-0" 
-                style={{
-                  maskImage: `url(${piggyBank})`,
-                  maskSize: 'contain',
-                  maskRepeat: 'no-repeat',
-                  maskPosition: 'center',
-                  WebkitMaskImage: `url(${piggyBank})`,
-                  WebkitMaskSize: 'contain',
-                  WebkitMaskRepeat: 'no-repeat',
-                  WebkitMaskPosition: 'center',
-                }}
-              >
-                {/* Empty state with pulsing effect */}
-                <motion.div 
-                  className="absolute inset-0 bg-primary-400/20"
-                  animate={{ 
-                    opacity: [0.1, 0.3, 0.1],
-                  }}
-                  transition={{ 
-                    duration: 2,
-                    repeat: Infinity,
-                    repeatType: "reverse" 
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* Next Achievement Card - Now in middle position (swapped with Budget Remaining) */}
-      <Card className="flex flex-col" height={250} delay={0.1}>
-        <div className="p-5 flex flex-col flex-grow">
-          <h2 className="text-lg font-bold text-white mb-2">Next Achievement</h2>
-          <div className="flex items-center space-x-3 mb-3">
-            <div className="w-10 h-10 bg-dark-700 rounded-full animate-pulse flex items-center justify-center"></div>
-            <div>
-              <div className="bg-dark-700 h-5 w-24 rounded animate-pulse mb-1"></div>
-              <div className="bg-dark-700 h-3 w-32 rounded animate-pulse"></div>
-            </div>
-          </div>
-          
-          <div className="flex flex-col justify-center flex-grow mt-10">
-            {/* Achievement Progress Bar (Empty) */}
-            <div className="w-full bg-dark-600 rounded-lg h-12 relative overflow-hidden">
-              <div className="bg-dark-700 h-12 w-0 animate-pulse"></div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-gray-500 font-medium">Upload to view</span>
-              </div>
-            </div>
-            <div className="flex justify-between text-xs text-gray-500 mt-1">
-              <span>0%</span>
-              <span>100%</span>
-            </div>
-            <p className="text-xs text-gray-500 text-center mt-2">Upload to unlock achievements</p>
-          </div>
-        </div>
-      </Card>
-      
-      {/* Budget Remaining Card - Now in last position (swapped with Achievement) */}
-      <Card className="flex flex-col" height={250} delay={0.2}>
-        <div className="p-5 flex flex-col flex-grow">
-          <h2 className="text-lg font-bold text-white mb-2">Budget Remaining</h2>
-          <div className="flex items-center mb-3">
-            <div className="bg-dark-700 h-8 w-24 rounded animate-pulse"></div>
-            <div className="text-sm text-gray-500 ml-2">/ month</div>
-          </div>
-          
-          <div className="flex flex-col justify-center flex-grow mt-4">
-            {/* Budget Progress Blocks Visualization (Empty State) */}
-            <div className="w-full rounded-lg bg-dark-600 h-12 relative">
-              {/* Budget blocks - empty state */}
-              <div className="flex h-full w-full">
-                {[...Array(10)].map((_, index) => (
-                  <div
-                    key={index}
-                    className="h-full flex-1 mx-0.5 bg-dark-700"
-                  />
-                ))}
-              </div>
-              
-              {/* Upload message overlay */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-gray-500 font-medium">Upload to view</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Card>
-    </div>
-  );
-
-  // Top stats cards for loaded state
-  const renderLoadedTopCards = () => {
-    // Calculate savings values with more realistic numbers
-    const monthlySavingsTarget = 2500; // More realistic target amount
-    // Get the actual income and calculate a more realistic current savings amount (30% of income minus expenses)
-    const monthlyIncome = userData.finances.income.amount;
-    const monthlyExpenses = userData.finances.expenses.reduce((sum, expense) => sum + expense.amount, 0);
-    const targetSavingsPercentage = 0.30; // Target saving 30% of income
-    const targetSavings = monthlyIncome * targetSavingsPercentage;
-    const currentSavings = Math.max(0, (monthlyIncome - monthlyExpenses));
-    const savingsPercentage = Math.min(Math.round((currentSavings / monthlySavingsTarget) * 100), 100);
-    
-    // Calculate budget values
-    const monthlyBudget = userData.finances.income.amount;
-    const budgetUsed = userData.finances.expenses.reduce((sum, expense) => sum + expense.amount, 0);
-    const budgetRemaining = monthlyBudget - budgetUsed;
-    const budgetPercentage = Math.min(Math.round((budgetRemaining / monthlyBudget) * 100), 100);
-
-    // Next achievement (we'll pick the first "not unlocked" one)
-    const achievements = [
-      { 
-        name: "Budget Master", 
-        description: "Created your first budget", 
-        icon: "🎯", 
-        color: "from-green-500 to-emerald-700",
-        progress: 100,
-        unlocked: true 
-      },
-      { 
-        name: "Saver Starter", 
-        description: "Saved your first $100", 
-        icon: "💰", 
-        color: "from-blue-500 to-indigo-700",
-        progress: 80,
-        unlocked: true 
-      },
-      { 
-        name: "Debt Crusher", 
-        description: "Paid off a loan", 
-        icon: "🔨", 
-        color: "from-purple-500 to-violet-700",
-        progress: 65,
-        unlocked: false 
-      },
-      { 
-        name: "Investor", 
-        description: "Made your first investment", 
-        icon: "📈", 
-        color: "from-amber-500 to-orange-700",
-        progress: 10,
-        unlocked: false 
-      },
-    ];
-    
-    const nextAchievement = achievements.find(a => !a.unlocked);
-
+  // Top stats cards for placeholder state (similar to loaded but with placeholders)
+  const renderPlaceholderTopCards = () => {
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
         {/* Monthly Savings Card */}
@@ -618,15 +616,13 @@ const HomePage = () => {
           <div className="p-5 flex flex-col flex-grow">
             <h2 className="text-lg font-bold text-white mb-2">Monthly Savings</h2>
             <div className="flex items-center mb-3">
-              <span className="text-2xl font-bold text-accent-400">${currentSavings.toFixed(2)}</span>
-              <span className="text-sm text-gray-500 ml-2">/ ${monthlySavingsTarget}</span>
-              <span className="text-xs text-accent-300 ml-2">({savingsPercentage}% saved)</span>
+              <span className="text-2xl font-bold text-accent-400">$0.00</span>
+              <span className="text-sm text-gray-500 ml-2">/ $0.00</span>
+              <span className="text-xs text-accent-300 ml-2">(0% saved)</span>
             </div>
             
-            {/* Custom Piggy Bank Visualization - Full Fill Implementation */}
             <div className="w-full flex flex-col items-center justify-center flex-grow">
               <div className="w-36 h-32 relative">
-                {/* Base white outline of piggy bank for visibility */}
                 <img 
                   src={piggyBank} 
                   alt="Piggy Bank Outline" 
@@ -634,7 +630,7 @@ const HomePage = () => {
                   style={{ filter: "brightness(0) invert(1) drop-shadow(0 0 2px white)" }}
                 />
                 
-                {/* The mask layer that uses the piggy bank as mask - for the full fill */}
+                {/* Piggy bank outline with animated pulsing effect for placeholder */}
                 <div 
                   className="absolute inset-0" 
                   style={{
@@ -648,25 +644,187 @@ const HomePage = () => {
                     WebkitMaskPosition: 'center',
                   }}
                 >
-                  {/* Bright blue background that fills the entire piggy */}
-                  <div className="absolute inset-0 bg-primary-400"></div>
+                  {/* Animated pulsing effect for placeholder */}
+                  <motion.div 
+                    className="absolute inset-0 bg-gradient-to-t from-accent-600/20 to-primary-500/20"
+                    animate={{ 
+                      opacity: [0.15, 0.35, 0.15],
+                    }}
+                    transition={{ 
+                      duration: 2,
+                      repeat: Infinity,
+                      repeatType: "reverse" 
+                    }}
+                  ></motion.div>
                   
-                  {/* Overlay that shows the percentage filled */}
-                  <div className="absolute inset-0 bg-dark-800">
-                    <motion.div 
-                      className="absolute left-0 right-0 bottom-0 bg-primary-400 w-full"
-                      initial={{ height: '0%' }}
-                      animate={{ height: `${savingsPercentage}%` }}
-                      transition={{ duration: 1.2, delay: 0.3, ease: "easeOut" }}
-                    ></motion.div>
-                  </div>
+                  {/* Outline glow effect with stronger highlight */}
+                  <div className="absolute inset-0 bg-primary-400/40"></div>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 text-center mt-2">Upload data to track savings</p>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Next Achievement Card */}
+        <motion.div 
+          className="bg-dark-800 rounded-xl shadow-xl overflow-hidden border border-dark-700 flex flex-col h-[250px]"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+        >
+          <div className="p-5 flex flex-col flex-grow">
+            <h2 className="text-lg font-bold text-white mb-2">Next Achievement</h2>
+            <div className="flex items-center space-x-3 mb-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-700 rounded-full flex items-center justify-center">
+                <span className="text-xl">🎯</span>
+              </div>
+              <div>
+                <p className="font-medium text-white">Budget Master</p>
+                <p className="text-xs text-gray-500">Created your first budget</p>
+              </div>
+            </div>
+            
+            <div className="flex flex-col justify-center flex-grow mt-11">
+              <div className="w-full bg-dark-600 rounded-lg h-12 relative overflow-hidden">
+                <div className="bg-dark-700 h-12 w-0"></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-gray-500 font-medium">Upload to view</span>
+                </div>
+              </div>
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <span>0%</span>
+                <span>100%</span>
+              </div>
+              <p className="text-xs text-gray-500 text-center mt-2">Upload to unlock achievements</p>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Budget Remaining Card */}
+        <motion.div 
+          className="bg-dark-800 rounded-xl shadow-xl overflow-hidden border border-dark-700 flex flex-col h-[250px]"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.2 }}
+        >
+          <div className="p-5 flex flex-col flex-grow">
+            <h2 className="text-lg font-bold text-white mb-2">Budget Remaining</h2>
+            <div className="flex items-center mb-3">
+              <span className="text-2xl font-bold text-accent-400">$0.00</span>
+              <span className="text-sm text-gray-500 ml-2">/ $0.00</span>
+            </div>
+            
+            <div className="flex flex-col justify-center flex-grow mt-4">
+              <div className="w-full rounded-lg bg-dark-600 h-12 relative overflow-hidden">
+                <div className="flex h-full w-full">
+                  {[...Array(10)].map((_, index) => (
+                    <div
+                      key={index}
+                      className="h-full flex-1 mx-0.5 bg-dark-700"
+                    />
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 text-center mt-2">Upload to view budget</p>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  };
+
+  // Top stats cards for loaded state
+  const renderLoadedTopCards = () => {
+    // Get key financial data
+    const monthlyIncome = userData.finances.income.amount;
+    const monthlyExpenses = userData.finances.expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    
+    // Calculate total savings goal contributions
+    const totalSavingsContributions = userData.finances.savingsGoals.reduce((sum, goal) => sum + goal.current, 0);
+    
+    // Calculate monthly balance: income - expenses - savings
+    const monthlyBalance = monthlyIncome - monthlyExpenses - totalSavingsContributions;
+    
+    // Budget remaining is the same as monthly balance
+    const budgetRemaining = monthlyBalance;
+    const monthlyBudget = monthlyIncome; // Total available budget is income
+    const budgetPercentage = Math.min(Math.round((budgetRemaining / monthlyBudget) * 100), 100);
+    
+    // Calculate savings values
+    // Monthly savings target is 30% of income after expenses
+    const availableForSavings = Math.max(0, monthlyIncome - monthlyExpenses);
+    const monthlySavingsTarget = Math.max(availableForSavings * 0.30, 1); // At least $1 to avoid division by zero
+    const savingsPercentage = Math.min(Math.round((totalSavingsContributions / monthlySavingsTarget) * 100), 100);
+
+    // Get achievements from data service
+    const achievementsResult = checkAchievementsProgress();
+    const achievements = achievementsResult.achievements;
+    
+    // Next achievement (we'll pick the first incomplete one or the one with the highest progress)
+    const incompleteAchievements = achievements.filter(a => a.status !== 'completed');
+    const nextAchievement = incompleteAchievements.length > 0 
+      ? incompleteAchievements.sort((a, b) => b.progress - a.progress)[0] 
+      : achievements[0]; // if all complete, show the first one
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+        {/* Monthly Savings Card */}
+        <motion.div 
+          className="bg-dark-800 rounded-xl shadow-xl overflow-hidden border border-dark-700 flex flex-col h-[250px]"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <div className="p-5 flex flex-col flex-grow">
+            <h2 className="text-lg font-bold text-white mb-2">Monthly Savings</h2>
+            <div className="flex items-center mb-3">
+              <span className="text-2xl font-bold text-accent-400">${totalSavingsContributions.toFixed(2)}</span>
+              <span className="text-sm text-gray-500 ml-2">/ ${monthlySavingsTarget.toFixed(2)}</span>
+              <span className="text-xs text-accent-300 ml-2">({savingsPercentage}% saved)</span>
+            </div>
+            
+            <div className="w-full flex flex-col items-center justify-center flex-grow">
+              <div className="w-36 h-32 relative">
+                <img 
+                  src={piggyBank} 
+                  alt="Piggy Bank Outline" 
+                  className="w-full h-full object-contain"
+                  style={{ filter: "brightness(0) invert(1) drop-shadow(0 0 2px white)" }}
+                />
+                
+                {/* Piggy bank outline with vertical fill based on savings percentage */}
+                <div 
+                  className="absolute inset-0" 
+                  style={{
+                    maskImage: `url(${piggyBank})`,
+                    maskSize: 'contain',
+                    maskRepeat: 'no-repeat',
+                    maskPosition: 'center',
+                    WebkitMaskImage: `url(${piggyBank})`,
+                    WebkitMaskSize: 'contain',
+                    WebkitMaskRepeat: 'no-repeat',
+                    WebkitMaskPosition: 'center',
+                  }}
+                >
+                  {/* Fill effect with stronger blue gradient that grows from bottom based on savings percentage */}
+                  <motion.div 
+                    className="absolute inset-0 bg-gradient-to-t from-accent-600 to-primary-500"
+                    initial={{ y: '100%' }}
+                    animate={{ y: `${Math.max(0, 100 - savingsPercentage)}%` }}
+                    transition={{ duration: 1.2, delay: 0.3, ease: "easeOut" }}
+                    style={{ opacity: 0.85 }}
+                  ></motion.div>
+                  
+                  {/* Outline glow effect with stronger highlight */}
+                  <div className="absolute inset-0 bg-primary-400/40"></div>
                 </div>
               </div>
             </div>
           </div>
         </motion.div>
 
-        {/* Next Achievement Card - Now in middle position (swapped with Budget Remaining) */}
+        {/* Next Achievement Card */}
         <motion.div 
           className="bg-dark-800 rounded-xl shadow-xl overflow-hidden border border-dark-700 flex flex-col h-[250px]"
           initial={{ opacity: 0, y: 20 }}
@@ -686,7 +844,6 @@ const HomePage = () => {
             </div>
             
             <div className="flex flex-col justify-center flex-grow mt-11">
-              {/* Achievement Progress Bar */}
               <div className="w-full bg-dark-600 rounded-lg h-12 relative overflow-hidden">
                 <motion.div 
                   className="bg-gradient-to-r from-accent-500 to-primary-500 h-12"
@@ -707,7 +864,7 @@ const HomePage = () => {
           </div>
         </motion.div>
 
-        {/* Budget Remaining Card - Now in last position (swapped with Achievement) */}
+        {/* Budget Remaining Card */}
         <motion.div 
           className="bg-dark-800 rounded-xl shadow-xl overflow-hidden border border-dark-700 flex flex-col h-[250px]"
           initial={{ opacity: 0, y: 20 }}
@@ -717,42 +874,33 @@ const HomePage = () => {
           <div className="p-5 flex flex-col flex-grow">
             <h2 className="text-lg font-bold text-white mb-2">Budget Remaining</h2>
             <div className="flex items-center mb-3">
-              <span className="text-2xl font-bold text-accent-400">${budgetRemaining.toFixed(2)}</span>
+              <span className="text-2xl font-bold text-accent-400">${monthlyBalance.toFixed(2)}</span>
               <span className="text-sm text-gray-500 ml-2">/ ${monthlyBudget.toFixed(2)}</span>
             </div>
             
             <div className="flex flex-col justify-center flex-grow mt-4">
-              {/* Budget Progress Blocks Visualization */}
               <div className="w-full rounded-lg bg-dark-600 h-12 relative overflow-hidden">
-                {/* Budget blocks - 10 cells */}
                 <div className="flex h-full w-full">
                   {[...Array(10)].map((_, index) => {
-                    // Calculate if this cell should be lit based on budget percentage
-                    // Each cell represents 10% of the budget
-                    const isActive = (index + 1) * 10 <= budgetPercentage;
-                    
-                    // Gradient from accent to primary for consistency with the top border
-                    // Determine the gradient based on position in the array
-                    let gradientClass = '';
-                    if (isActive) {
-                      if (index < 3) { // First 30% - Accent
-                        gradientClass = 'bg-accent-500';
-                      } else if (index < 7) { // 30-70% - Accent-primary blend
-                        gradientClass = 'bg-gradient-to-r from-accent-500 to-secondary-500';
-                      } else { // 70-100% - Primary
-                        gradientClass = 'bg-gradient-to-r from-secondary-500 to-primary-500';
-                      }
-                    }
+                    // Calculate if this segment should be filled
+                    const segmentValue = index * 10; // 0, 10, 20, ... 90
+                    const isFilled = budgetPercentage >= segmentValue;
                     
                     return (
-                      <div
+                      <motion.div
                         key={index}
-                        className={`h-full flex-1 mx-0.5 ${isActive ? gradientClass : 'bg-dark-700'}`}
+                        className={`h-full flex-1 mx-0.5 ${isFilled ? 'bg-gradient-to-r from-accent-500 to-primary-500' : 'bg-dark-700'}`}
+                        initial={{ opacity: isFilled ? 0 : 1 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.3, delay: 0.5 + (index * 0.1) }}
                       />
                     );
                   })}
                 </div>
+                
+                {/* Removed overlay text as requested */}
               </div>
+              <p className="text-xs text-gray-500 text-center mt-2">{budgetPercentage}% of budget remaining</p>
             </div>
           </div>
         </motion.div>
@@ -760,8 +908,8 @@ const HomePage = () => {
     );
   };
 
-  // Achievement cards for empty state
-  const renderEmptyAchievements = () => (
+  // Achievement cards for placeholder state
+  const renderPlaceholderAchievements = () => (
     <div className="mb-6">
       <Card gradientBorder delay={0.1}>
         <div className="p-4">
@@ -775,15 +923,23 @@ const HomePage = () => {
           <div className="overflow-x-auto pb-2">
             <div className="flex space-x-4">
               {[...Array(4)].map((_, index) => (
-                <AchievementCard
-                  key={index}
-                  loading={true}
-                  name=""
-                  description=""
-                  icon={<div className="bg-dark-700 h-10 w-10 rounded-full animate-pulse"></div>}
-                  color="from-dark-600 to-dark-500"
-                  index={index}
-                />
+                <div 
+                  key={index} 
+                  className="flex-none w-48 p-3 bg-dark-800 rounded-lg border border-dark-600 shadow-md"
+                >
+                  <div className="flex items-center mb-2">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-dark-600 to-dark-500 flex items-center justify-center mr-3">
+                      <span className="text-xl opacity-50">?</span>
+                    </div>
+                    <div>
+                      <p className="text-gray-300 font-medium">???</p>
+                      <p className="text-xs text-gray-500">Upload to unlock</p>
+                    </div>
+                  </div>
+                  <div className="w-full bg-dark-600 rounded-full h-2 mt-3">
+                    <div className="bg-dark-700 h-2 rounded-full" style={{ width: '0%' }}></div>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
@@ -794,46 +950,17 @@ const HomePage = () => {
 
   // Achievement cards for loaded state
   const renderLoadedAchievements = () => {
-    // Sample achievements (in a real app, these would come from the user profile)
-    const achievements = [
-      { 
-        name: "Debt Crusher", 
-        description: "Paid off a loan", 
-        icon: "🔨", 
-        color: "from-purple-500 to-violet-700",
-        status: "in-progress",
-        progress: 65,
-        unlocked: false 
-      },
-      { 
-        name: "Investor", 
-        description: "Made your first investment", 
-        icon: "�", 
-        color: "from-amber-500 to-orange-700",
-        status: "not-started",
-        progress: 10,
-        unlocked: false 
-      },
-      { 
-        name: "Budget Master", 
-        description: "Created your first budget", 
-        icon: "🎯", 
-        color: "from-green-500 to-emerald-700",
-        status: "completed",
-        progress: 100,
-        unlocked: true 
-      },
-      { 
-        name: "Saver Starter", 
-        description: "Saved your first $100", 
-        icon: "�", 
-        color: "from-blue-500 to-indigo-700",
-        status: "completed",
-        progress: 100,
-        unlocked: true 
-      },
-    ];
-
+    // Get achievements from data service
+    const achievements = getAchievements();
+    
+    // Mark achievement section as explored for the Financial Explorer achievement
+    const newlyCompleted = recordSectionExplored('achievements');
+    
+    // Show notification if an achievement was just completed
+    if (newlyCompleted) {
+      setCompletedAchievement(newlyCompleted);
+    }
+    
     return (
       <div className="mb-6">
         <Card gradientBorder delay={0.1}>
@@ -845,22 +972,21 @@ const HomePage = () => {
               Achievements
             </h2>
             
-            <div className="overflow-x-auto pb-2">
-              <div className="flex space-x-4">
-                {achievements.map((achievement, index) => {                  
-                  return (
-                    <AchievementCard
-                      key={index}
-                      name={achievement.name}
-                      description={achievement.description}
-                      icon={<span className="text-4xl">{achievement.icon}</span>}
-                      color={achievement.color}
-                      status={achievement.status || (achievement.unlocked ? "completed" : "not-started")}
-                      progress={achievement.progress}
-                      index={index}
-                    />
-                  );
-                })}
+            <div className="overflow-x-auto pb-4">
+              <div className="flex space-x-4 py-2">
+                {achievements.map((achievement, index) => (
+                  <AchievementCard
+                    key={index}
+                    name={achievement.name}
+                    description={achievement.description}
+                    icon={achievement.icon}
+                    color={achievement.color}
+                    status={achievement.status}
+                    progress={achievement.progress}
+                    unlocked={achievement.status === 'completed'}
+                    index={index}
+                  />
+                ))}
               </div>
             </div>
           </div>
@@ -874,16 +1000,16 @@ const HomePage = () => {
       <Header title="Welcome" username={username} />
       
       <div className="p-4">
-        {/* Top cards section at the top */}
-        {!dataLoaded ? renderEmptyTopCards() : renderLoadedTopCards()}
+        {/* Top stats cards (monthly savings, next achievement, budget) */}
+        {!dataLoaded ? renderPlaceholderTopCards() : renderLoadedTopCards()}
         
-        {/* Achievements section */}
-        {!dataLoaded ? renderEmptyAchievements() : renderLoadedAchievements()}
+        {/* Achievement cards */}
+        {!dataLoaded ? renderPlaceholderAchievements() : renderLoadedAchievements()}
         
         {/* Main dashboard content */}
-        {!dataLoaded ? renderEmptyDashboard() : renderLoadedDashboard()}
+        {!dataLoaded ? renderPlaceholderDashboard() : renderLoadedDashboard()}
         
-        {/* Financial Entry Forms */}
+        {/* Financial entry form modal */}
         <AnimatePresence>
           {activeForm && (
             <FinancialEntryForm
@@ -894,99 +1020,128 @@ const HomePage = () => {
           )}
         </AnimatePresence>
         
-        {/* Button Group */}
-        <div className="fixed bottom-24 right-6 space-y-4">
-          {/* Chatbot Button */}
+        {/* Collapsible floating action button menu */}
+        <div ref={menuRef} className={`fixed bottom-24 right-6 ${menuExpanded ? 'menu-expanded' : ''}`}>
+          {/* Main FAB button - always visible */}
           <motion.div
-            className="flex flex-col items-center"
+            className="flex flex-col items-center relative z-20"
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ 
               type: "spring", 
               stiffness: 260, 
               damping: 20,
-              delay: 0.7
+              delay: 0.6
             }}
           >
             <button 
-              className="bg-gradient-to-r from-secondary-500 to-blue-500 text-white rounded-full w-16 h-16 flex items-center justify-center shadow-xl"
-              onClick={() => setShowChatModal(true)}
+              className="menu-button bg-gradient-to-r from-primary-600 to-accent-600 text-white rounded-full w-16 h-16 flex items-center justify-center shadow-xl hover:from-primary-500 hover:to-accent-500 transition-all duration-300"
+              aria-label="Menu"
+              onClick={() => setMenuExpanded(!menuExpanded)}
             >
-              <FaCommentDots className="h-7 w-7" />
-            </button>
-            <p className="text-xs text-center mt-2 text-gray-400">Chat</p>
-          </motion.div>
-          
-          {/* AI Coach Button */}
-          <motion.div
-            className="flex flex-col items-center"
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ 
-              type: "spring", 
-              stiffness: 260, 
-              damping: 20,
-              delay: 0.8
-            }}
-          >
-            <button 
-              className="bg-gradient-to-r from-accent-500 to-secondary-500 text-white rounded-full w-16 h-16 flex items-center justify-center shadow-xl"
-              onClick={() => navigate('/coach')}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+              <svg xmlns="http://www.w3.org/2000/svg" className={`h-8 w-8 transition-transform duration-300 ${menuExpanded ? 'rotate-45' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                {menuExpanded ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                )}
               </svg>
             </button>
-            <p className="text-xs text-center mt-2 text-gray-400">AI Coach</p>
+            <p className="text-xs text-center mt-2 text-gray-400">Menu</p>
           </motion.div>
           
-          {/* Upload/Refresh Data Button - shown on both empty and loaded states */}
-          <motion.div
-            className="flex flex-col items-center"
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ 
-              type: "spring", 
-              stiffness: 260, 
-              damping: 20,
-              delay: 1
-            }}
-          >
-            <button 
-              className="bg-gradient-to-r from-primary-500 to-accent-500 text-white rounded-full w-16 h-16 flex items-center justify-center shadow-xl"
-              onClick={handleUploadData}
-              disabled={uploading}
-            >
-              {uploading ? (
-                <FaSpinner className="h-8 w-8 animate-spin" />
-              ) : (
-                <FaUpload className="h-7 w-7" />
-              )}
-            </button>
-            <p className="text-xs text-center mt-2 text-gray-400">
-              {dataLoaded ? "Refresh Data" : "Upload Data"}
-            </p>
-          </motion.div>
+          {/* Menu items positioned absolutely and shown when expanded */}
+          <div className="absolute bottom-0 right-0 w-16 h-16 z-10">
+            {/* Chat button */}
+            <div className="floating-menu-item flex flex-col items-center">
+              <button 
+                className="bg-gradient-to-r from-secondary-500 to-blue-500 text-white rounded-full w-16 h-16 flex items-center justify-center shadow-xl hover:from-secondary-400 hover:to-blue-400 transition-colors duration-300"
+                onClick={() => {
+                  setShowChatModal(true);
+                  setMenuExpanded(false);
+                }}
+                aria-label="Chat"
+              >
+                <FaCommentDots className="h-7 w-7" />
+              </button>
+              <p className="menu-tooltip text-xs text-center mt-2 text-white">Chat</p>
+            </div>
+            
+            {/* AI coach button */}
+            <div className="floating-menu-item flex flex-col items-center">
+              <button 
+                className="bg-gradient-to-r from-accent-500 to-secondary-500 text-white rounded-full w-16 h-16 flex items-center justify-center shadow-xl hover:from-accent-400 hover:to-secondary-400 transition-colors duration-300"
+                onClick={() => {
+                  navigate('/coach');
+                  setMenuExpanded(false);
+                }}
+                aria-label="AI Coach"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
+              </button>
+              <p className="menu-tooltip text-xs text-center mt-2 text-white">AI Coach</p>
+            </div>
+            
+            {/* Upload/Refresh data button */}
+            <div className="floating-menu-item flex flex-col items-center">
+              <button 
+                className="bg-gradient-to-r from-primary-500 to-accent-500 text-white rounded-full w-16 h-16 flex items-center justify-center shadow-xl hover:from-primary-400 hover:to-accent-400 transition-colors duration-300"
+                onClick={() => {
+                  handleUploadData();
+                  setMenuExpanded(false);
+                }}
+                disabled={uploading}
+                aria-label={dataLoaded ? "Refresh Data" : "Upload Data"}
+              >
+                {uploading ? (
+                  <FaSpinner className="h-8 w-8 animate-spin" />
+                ) : (
+                  <FaUpload className="h-7 w-7" />
+                )}
+              </button>
+              <p className="menu-tooltip text-xs text-center mt-2 text-white">
+                {dataLoaded ? "Refresh Data" : "Upload Data"}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
       
-      {/* Welcome Popup - Only shows once per session */}
+      {/* Welcome popup */}
       <WelcomePopup 
         isOpen={showWelcomePopup} 
         onClose={() => {
           setShowWelcomePopup(false);
-          // Ensure it stays marked as shown
-          sessionStorage.setItem('centsi_welcome_shown', 'true');
+          localStorage.setItem('centsi_welcome_shown', 'true');
         }} 
         userProfile={questionnaire}
       />
       
-      {/* Chatbot Modal */}
+      {/* Chat modal */}
       <ChatbotModal 
         isOpen={showChatModal}
         onClose={() => setShowChatModal(false)}
-        userProfile={userData}  // Passing complete user data instead of just questionnaire
+        userProfile={userData}
+        username={username}
       />
+      
+      {/* Achievement celebration with confetti */}
+      {completedAchievement && (
+        <AchievementCelebration 
+          achievement={completedAchievement} 
+          onClose={() => setCompletedAchievement(null)}
+        />
+      )}
+      
+      {/* Savings goal completion celebration */}
+      {completedGoal && (
+        <SavingsGoalCelebration 
+          goalName={completedGoal.name}
+          onComplete={() => setCompletedGoal(null)}
+        />
+      )}
     </div>
   );
 };

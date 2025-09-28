@@ -176,6 +176,10 @@ const FinancialEntryForm = ({ type, onSubmit, onClose }) => {
       if (isNaN(formData.current) || parseFloat(formData.current) < 0) {
         newErrors.current = 'Please enter a valid current amount';
       }
+      // Ensure current amount doesn't exceed target amount
+      if (parseFloat(formData.current) > parseFloat(formData.target)) {
+        newErrors.current = 'Current amount cannot exceed target amount';
+      }
     }
     
     setErrors(newErrors);
@@ -268,7 +272,8 @@ const FinancialEntryForm = ({ type, onSubmit, onClose }) => {
             id="amount"
             value={formData.amount}
             onChange={handleChange}
-            className={errors.amount ? 'error' : ''}
+            className={`amount-input ${errors.amount ? 'error' : ''}`}
+            placeholder="0.00"
           />
         </div>
         {errors.amount && <div className="error-message">{errors.amount}</div>}
@@ -318,7 +323,8 @@ const FinancialEntryForm = ({ type, onSubmit, onClose }) => {
               id="averageAmount"
               value={formData.averageAmount || formData.amount}
               onChange={handleChange}
-              placeholder="Average income amount"
+              placeholder="0.00"
+              className="amount-input"
             />
           </div>
           <p className="text-xs text-gray-500 mt-1">Your best estimate of what you typically receive</p>
@@ -354,7 +360,8 @@ const FinancialEntryForm = ({ type, onSubmit, onClose }) => {
             id="amount"
             value={formData.amount}
             onChange={handleChange}
-            className={errors.amount ? 'error' : ''}
+            className={`amount-input ${errors.amount ? 'error' : ''}`}
+            placeholder="0.00"
           />
         </div>
         {errors.amount && <div className="error-message">{errors.amount}</div>}
@@ -437,7 +444,8 @@ const FinancialEntryForm = ({ type, onSubmit, onClose }) => {
             id="target"
             value={formData.target}
             onChange={handleChange}
-            className={errors.target ? 'error' : ''}
+            className={`amount-input ${errors.target ? 'error' : ''}`}
+            placeholder="0.00"
           />
         </div>
         {errors.target && <div className="error-message">{errors.target}</div>}
@@ -454,7 +462,8 @@ const FinancialEntryForm = ({ type, onSubmit, onClose }) => {
             id="current"
             value={formData.current}
             onChange={handleChange}
-            className={errors.current ? 'error' : ''}
+            className={`amount-input ${errors.current ? 'error' : ''}`}
+            placeholder="0.00"
           />
         </div>
         {errors.current && <div className="error-message">{errors.current}</div>}

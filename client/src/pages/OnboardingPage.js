@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { clearDataLoadState } from '../utils/dataService';
 
 const OnboardingPage = ({ onLogin }) => {
   const navigate = useNavigate();
@@ -290,6 +291,15 @@ const OnboardingPage = ({ onLogin }) => {
         incomeType: profile.incomeType,
         financialPriority: profile.financialPriority
       }));
+      
+      // Reset achievement progress for new logins coming from the questionnaire
+      localStorage.removeItem('centsi_achievements');
+      
+      // Reset savings goals for new logins coming from the questionnaire
+      localStorage.removeItem('centsi_financial_data');
+      
+      // Clear data load state to ensure dashboard starts empty after onboarding
+      clearDataLoadState();
       
       // Save username separately for easy access
       if (profile.name) {
